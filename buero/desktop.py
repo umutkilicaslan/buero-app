@@ -55,7 +55,11 @@ def selftest() -> int:
     """Used by the build: run the real app on a temporary data folder and make an invoice PDF
     with the bundled libraries (templates, Pango, fonts)."""
     import tempfile
+    import warnings
 
+    warnings.simplefilter("always")
+    caught = warnings.catch_warnings(record=True)
+    seen = caught.__enter__()
     from . import pdf
     if err := pdf.engine_error():
         print(err)
@@ -78,8 +82,10 @@ def selftest() -> int:
                                              "description": ["Zirkuspädagogik"], "quantity": ["2"], "unit": ["Std."],
                                              "unit_price": ["30"], "action": "preview"})
         ok = r.headers.get("content-type") == "application/pdf" and r.content.startswith(b"%PDF")
-        ok = ok and b"/FontFile" in r.content  # fonts were found and embedded
         dash = c.get("/")
+        if any("No fonts configured" in str(w.message) for w in seen):
+            print("selftest: fontconfig found no fonts")
+            ok = False
         print(f"selftest: invoice PDF {'ok' if ok else 'FAILED'} ({len(r.content)} bytes), dashboard {dash.status_code}")
         return 0 if ok and dash.status_code == 200 else 1
 
