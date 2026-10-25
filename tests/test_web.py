@@ -198,3 +198,25 @@ def test_macos_restarts_with_homebrew_library_path(monkeypatch):
     monkeypatch.setenv("BUERO_LIBS_SET", "1")
     m._find_homebrew_libs()
     assert len(calls) == 1
+
+
+def test_live_preview_renders_form_without_saving(web):
+    c, _ = web
+    setup_business(c)
+    c.post("/invoices/new", data={"client_id": "1"})
+    form = {"client_id": "1", "language": "de", "service_from": "2026-09-01", "description": ["Akrobatik"],
+            "quantity": ["2"], "unit": ["Std."], "unit_price": ["40"]}
+    r = c.post("/invoices/1/live", data=form)
+    assert r.status_code == 200 and "Akrobatik" in r.text and "80,00" in r.text
+    assert "Akrobatik" not in c.get("/invoices/1/preview").text
+    r = c.post("/invoices/1/live", data=dict(form, description=[""], unit_price=["5"]))
+    assert r.status_code == 422 and "description" in r.text
+
+
+def test_draft_can_be_saved_without_service_date(web):
+    c, _ = web
+    setup_business(c)
+    c.post("/invoices/new", data={"client_id": "1"})
+    r = c.post("/invoices/1/save", data={"client_id": "1", "description": ["Später"], "quantity": ["1"],
+                                         "unit": [""], "unit_price": ["10"], "action": "save"})
+    assert "Draft saved" in r.text and "Before issuing" in r.text

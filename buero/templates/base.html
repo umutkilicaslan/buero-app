@@ -22,7 +22,7 @@
     <a href="/audit" class="{{ 'active' if p.startswith('/audit') }}">Audit log</a>
   </nav>
 </aside>
-<main>
+<main class="{% block main_class %}{% endblock %}">
 {% if request.query_params.get('msg') %}<div class="flash ok">{{ request.query_params.get('msg') }}</div>{% endif %}
 {% if request.query_params.get('err') %}<div class="flash err">{{ request.query_params.get('err') }}</div>{% endif %}
 {% if not settings.complete and p != '/settings' %}
