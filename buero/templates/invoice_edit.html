@@ -51,7 +51,8 @@
 
 <div class="sticky-actions">
   <button name="action" value="save">Save draft</button>
-  <a class="btn secondary" href="/invoices/{{ inv.id }}/pdf" target="_blank">Preview PDF</a>
+  <button name="action" value="preview" class="secondary" formtarget="_blank" formnovalidate
+    title="Opens what is in the form as PDF in a new tab (does not save)">Preview PDF</button>
   <button name="action" value="issue" class="secondary"
     onclick="return confirm('Issue this invoice now?\n\nIt gets number {{ next_number }} and the PDF is archived. Afterwards it can never be changed or deleted (GoBD), only cancelled with a Storno.')">Save &amp; issue</button>
 </div>

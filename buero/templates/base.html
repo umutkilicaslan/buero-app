@@ -28,6 +28,7 @@
 {% if not settings.complete and p != '/settings' %}
   <div class="note warn">Welcome! Please fill in <a href="/settings"><strong>your business details</strong></a> first. They are needed on every invoice.</div>
 {% endif %}
+{% if pdf_error %}<div class="note err"><strong>PDFs are not working on this computer.</strong> {{ pdf_error }}</div>{% endif %}
 {% block content %}{% endblock %}
 </main>
 </div>
