@@ -54,8 +54,11 @@ def free_port() -> int | None:
 def selftest() -> int:
     """Used by the build: run the real app on a temporary data folder and make an invoice PDF
     with the bundled libraries (templates, Pango, fonts)."""
+    import faulthandler
     import tempfile
     import warnings
+
+    faulthandler.enable()
 
     warnings.simplefilter("always")
     caught = warnings.catch_warnings(record=True)
