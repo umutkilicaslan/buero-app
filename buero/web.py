@@ -425,6 +425,20 @@ def _pdf_or_html(html: str, filename: str) -> Response:
         return HTMLResponse(html.replace("<body>", "<body>" + banner, 1))
 
 
+@app.post("/invoices/{iid}/live", response_class=HTMLResponse)
+async def invoice_live(iid: int, request: Request, s: Session = Depends(get_session)):
+    """The draft as it is in the form right now, for the preview next to the editor. Nothing is saved."""
+    inv = _get(s, Invoice, iid)
+    f = await request.form()
+    try:
+        _apply_draft_form(s, inv, f)
+        return HTMLResponse(_draft_html(s, inv))
+    except (BusinessError, ValueError) as e:
+        return HTMLResponse(escape(str(e)), status_code=422)
+    finally:
+        s.rollback()
+
+
 @app.get("/invoices/{iid}/preview", response_class=HTMLResponse)
 def invoice_preview(iid: int, s: Session = Depends(get_session)):
     inv = _get(s, Invoice, iid)

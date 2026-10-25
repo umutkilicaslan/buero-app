@@ -21,6 +21,12 @@
   .footer { position: running(footer); font-size: 7.5pt; color: #555; border-top: 0.5pt solid #aaa; width: 100%; }
   .footer td { vertical-align: top; padding: 2mm 4mm 0 0; width: 33%; }
   .draft { color: #b00; font-weight: 700; font-size: 12pt; }
+  @media screen {  /* web preview: an A4 sheet; the PDF ignores this */
+    html { background: #e9e8e4; }
+    body { width: 210mm; min-height: 297mm; box-sizing: border-box; margin: 0 auto; padding: 20mm 18mm 12mm 22mm;
+           background: #fff; display: flex; flex-direction: column; }
+    .footer { order: 99; margin-top: auto; padding-top: 10mm; }
+  }
 </style></head>
 <body>
 <table class="footer"><tr>

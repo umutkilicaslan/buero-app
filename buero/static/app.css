@@ -87,7 +87,22 @@ tbody tr:hover td { background:color-mix(in srgb, var(--soft) 55%, transparent);
 details summary { cursor:pointer; color:var(--accent); font-weight:600; }
 .lines input { padding:7px 9px; } .lines td { padding:5px 4px; } .lines td.r { padding-top:12px; }
 .totals { max-width:360px; margin-left:auto; } .totals td { padding:6px 8px; } .totals tr.grand td { font-weight:700; font-size:17px; border-top:2px solid var(--fg); }
-.sticky-actions { position:sticky; bottom:0; background:var(--panel); padding:12px 0 2px; display:flex; gap:10px; flex-wrap:wrap; border-top:1px solid var(--line); margin-top:16px; }
+.sticky-actions { position:sticky; bottom:0; z-index:5; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(6px);
+  padding:12px 0; display:flex; gap:10px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--line); margin-top:16px; }
+.sticky-actions .spacer { flex:1; }
+main.wide { max-width:1560px; }
+.editor { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
+.preview-pane { min-width:0; }
+.preview-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin:2px 2px 8px; }
+.preview-head h3 { margin:0; }
+.preview-sheet { position:relative; overflow:hidden; border-radius:6px; border:1px solid var(--line); background:#fff;
+  box-shadow:0 2px 14px rgba(0,0,0,.08); height:560px; }
+.preview-sheet iframe { position:absolute; top:0; left:0; width:794px; height:1123px; border:0; transform-origin:0 0; background:#fff; }
+@media (min-width:1280px) {
+  .editor { grid-template-columns:minmax(0,1fr) minmax(360px,42%); align-items:start; }
+  .preview-pane { position:sticky; top:16px; }
+}
+.err-text { color:var(--err); } .warn-text { color:var(--warn); }
 .deadline { display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); }
 .deadline:last-child { border-bottom:none; }
 .split { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
@@ -130,3 +145,5 @@ details summary { cursor:pointer; color:var(--accent); font-weight:600; }
 .typing span:nth-child(2) { animation-delay:.2s; } .typing span:nth-child(3) { animation-delay:.4s; }
 @keyframes blink { 0%,80%,100% { opacity:.25 } 40% { opacity:1 } }
 @media (max-width:700px) { .msg { max-width:92%; } }
+.inline-new { flex-wrap:nowrap; align-items:center; } .inline-new select { padding:8px 11px; }
+@media (max-width:760px) { .inline-new { flex-wrap:wrap; } .inline-new select { width:100% !important; } }

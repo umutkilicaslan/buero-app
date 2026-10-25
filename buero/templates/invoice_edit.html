@@ -1,10 +1,13 @@
-{% extends "base.html" %}{% block content %}
-<div class="head"><h1>Draft invoice</h1><span class="badge info">will get no. {{ next_number }}</span></div>
+{% extends "base.html" %}{% block main_class %}wide{% endblock %}{% block content %}
+<div class="head"><h1>Draft invoice <span class="badge info">will get no. {{ next_number }}</span></h1>
+  <span class="small muted" id="save-state">All changes saved</span></div>
 <form method="post" action="/invoices/{{ inv.id }}/save" id="f">
+<div class="editor">
+<div class="editor-form">
 <div class="card">
   <div class="grid">
     <div><label>Client</label><select name="client_id">{% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if c.id == inv.client_id }}>{{ c.name }}</option>{% endfor %}</select></div>
-    <div><label>Service from *</label><input type="date" name="service_from" value="{{ inv.service_from or '' }}" required></div>
+    <div><label>Service from *</label><input type="date" name="service_from" value="{{ inv.service_from or '' }}"></div>
     <div><label>Service to (for a period)</label><input type="date" name="service_to" value="{{ inv.service_to or '' }}"></div>
     <div><label>Invoice date</label><input type="date" name="issue_date" value="{{ inv.issue_date or '' }}"><div class="hint">Empty = the day you issue it.</div></div>
   </div>
@@ -48,16 +51,25 @@
 </div>
 
 {% for p in problems %}<div class="note warn">Before issuing: {{ p }}</div>{% endfor %}
+</div>
+
+<div class="preview-pane">
+  <div class="preview-head"><h3>Preview</h3><span class="small muted" id="preview-state">as it will look</span></div>
+  <div class="preview-sheet" id="sheet"><iframe id="preview" title="Invoice preview" src="/invoices/{{ inv.id }}/preview" tabindex="-1"></iframe></div>
+</div>
+</div>
 
 <div class="sticky-actions">
-  <button name="action" value="save">Save draft</button>
-  <button name="action" value="preview" class="secondary" formtarget="_blank" formnovalidate
-    title="Opens what is in the form as PDF in a new tab (does not save)">Preview PDF</button>
+  <button name="action" value="save" title="Save (⌘S)">Save draft</button>
+  <button name="action" value="preview" class="secondary" formtarget="_blank"
+    title="Opens what is in the form as PDF in a new tab (does not save)">Open as PDF</button>
   <button name="action" value="issue" class="secondary"
     onclick="return confirm('Issue this invoice now?\n\nIt gets number {{ next_number }} and the PDF is archived. Afterwards it can never be changed or deleted (GoBD), only cancelled with a Storno.')">Save &amp; issue</button>
+  <span class="spacer"></span>
+  <button form="del" class="danger small">Delete draft</button>
 </div>
 </form>
-<form method="post" action="/invoices/{{ inv.id }}/delete" onsubmit="return confirm('Delete this draft?')" style="margin-top:14px"><button class="danger small">Delete draft</button></form>
+<form method="post" action="/invoices/{{ inv.id }}/delete" id="del" onsubmit="return confirm('Delete this draft?')"></form>
 <template id="rowtpl">{% set ln = none %}{% include "_line.html" %}</template>
 <script>
 const rate = {{ inv.vat_rate }};
@@ -73,6 +85,30 @@ function bind(){ document.querySelectorAll('#lines input').forEach(i=>i.oninput=
 function iso(d){ return d.toISOString().slice(0,10); }
 function setMonth(off){ const n=new Date(); const a=new Date(Date.UTC(n.getFullYear(), n.getMonth()+off, 1)); const b=new Date(Date.UTC(n.getFullYear(), n.getMonth()+off+1, 0));
   document.querySelector('[name=service_from]').value=iso(a); document.querySelector('[name=service_to]').value=iso(b); }
+
+// Live preview: render what is in the form (nothing is saved), at most every 400 ms
+const form = document.getElementById('f'), frame = document.getElementById('preview'), sheet = document.getElementById('sheet');
+const pstate = document.getElementById('preview-state'), sstate = document.getElementById('save-state');
+let timer, seq = 0, dirty = false;
+function fit(){ const s = sheet.clientWidth / 794; frame.style.transform = `scale(${s})`;
+  const h = frame.contentDocument && frame.contentDocument.documentElement ? frame.contentDocument.documentElement.scrollHeight : 1123;
+  frame.style.height = Math.max(h, 1123) + 'px'; sheet.style.height = (Math.max(h, 1123) * s) + 'px'; }
+async function refresh(){ const n = ++seq; const data = new FormData(form); data.delete('action');
+  try { const r = await fetch('/invoices/{{ inv.id }}/live', {method:'POST', body:data}); const body = await r.text();
+    if (n !== seq) return;
+    if (r.ok) { frame.srcdoc = body; pstate.textContent = 'as it will look'; pstate.className = 'small muted'; }
+    else { pstate.textContent = body; pstate.className = 'small err-text'; }
+  } catch (e) { pstate.textContent = 'Preview not available (is the app still running?)'; pstate.className = 'small err-text'; } }
+function changed(){ dirty = true; sstate.textContent = 'Unsaved changes'; sstate.className = 'small warn-text';
+  clearTimeout(timer); timer = setTimeout(refresh, 400); }
+form.addEventListener('input', changed); form.addEventListener('change', changed);
+frame.addEventListener('load', fit); window.addEventListener('resize', fit);
+form.addEventListener('submit', e => { if (!e.submitter || e.submitter.value !== 'preview') dirty = false; });
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); form.querySelector('[value=save]').click(); } });
+const _addRow = addRow, _delRow = delRow;
+addRow = () => { _addRow(); changed(); }; delRow = b => { _delRow(b); changed(); };
+const _setMonth = setMonth; setMonth = off => { _setMonth(off); changed(); };
 bind(); recalc();
 </script>
 {% endblock %}

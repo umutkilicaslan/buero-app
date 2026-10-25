@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% from "_status.html" import status %}{% block content %}
 <div class="head"><h1>Invoices</h1>
-  <form method="post" action="/invoices/new" class="row">
-    <select name="client_id" required style="min-width:220px"><option value="">Choose client…</option>
+  <form method="post" action="/invoices/new" class="row inline-new">
+    <select name="client_id" required style="min-width:220px;width:auto"><option value="">Choose client…</option>
       {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
     <button>+ New invoice</button>
   </form>
