@@ -1,7 +1,7 @@
 import hashlib
 import json
 from html import escape
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import urlencode
@@ -98,7 +98,9 @@ def dashboard(request: Request, s: Session = Depends(get_session)):
         start = date(year, m, 1)
         end = (date(year + (m == 12), m % 12 + 1, 1) - timedelta(days=1))
         monthly.append((start.strftime("%b"), sum((i.gross for i in ledger.income_items(s, start, end)), Decimal(0))))
-    return page(request, "dashboard.html", s, year=year, open_invoices=open_inv, drafts=drafts,
+    hour = datetime.now().hour
+    greeting = "Good morning" if 5 <= hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
+    return page(request, "dashboard.html", s, year=year, open_invoices=open_inv, drafts=drafts, greeting=greeting,
                 overdue=[i for i in open_inv if i.is_overdue(today)],
                 open_total=sum((i.outstanding for i in open_inv), Decimal("0")),
                 problems=services.check_numbering(s), revenue=revenue, euer=eu,

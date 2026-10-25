@@ -132,7 +132,7 @@ def test_web_flow(tmp_path, monkeypatch):
     assert "only talks to Ollama on this computer" in c.post("/settings/ai", data={"ai_enabled": "on",
                                                                                  "ai_url": "https://example.com"}).text
     r = c.post("/settings/ai", data={"ai_enabled": "on", "ai_url": "http://127.0.0.1:11434", "ai_model": "qwen3:4b"})
-    assert "Assistant settings saved" in r.text and "✦ Assistant" in r.text
+    assert "Assistant settings saved" in r.text and '<span class="lbl">Assistant</span>' in r.text
     monkeypatch.setattr(assistant, "status", lambda url, model: {"running": True, "installed": True, "models": [model]})
     assert "What should I do?" in c.get("/assistant").text
     c.post("/clients/save", data=dict(name="Katakids gUG", street="Weg 3", postal_code="10115", city="Berlin",

@@ -1,12 +1,12 @@
-{% extends "base.html" %}{% block title %}Assistant · Büro{% endblock %}{% block content %}
-<div class="head"><h1>Assistant</h1>
+{% extends "base.html" %}{% from "_mascot.html" import mascot %}{% block title %}Assistant · Büro{% endblock %}{% block content %}
+<div class="head"><h1>Pip, your assistant</h1>
   <div class="row"><span class="small muted">{{ settings.ai_model }} · on this Mac</span>
   <a class="btn secondary small" href="/assistant">New chat</a></div></div>
 {% if not ai_status.running %}<div class="note warn">Ollama is not running. Open the Ollama app, then reload this page. <a href="/settings#ai">Setup</a></div>
 {% elif not ai_status.installed %}<div class="note warn">The model <strong>{{ settings.ai_model }}</strong> is not installed. In Terminal run <code>ollama pull {{ settings.ai_model }}</code>. <a href="/settings#ai">Settings</a></div>{% endif %}
 <div class="card chat">
   <div id="chat">{{ chat_html|safe }}</div>
-  {% if not conv.display %}<div id="empty" class="empty"><strong>What should I do?</strong>
+  {% if not conv.display %}<div id="empty" class="empty">{{ mascot() }}<strong>Hi, I'm Pip! What should I do?</strong>
     I can look things up and prepare drafts. Nothing is saved until you press <em>Apply</em>.
     <div class="chips">
       <button type="button" class="small secondary" onclick="ask(this.textContent)">GrenzKultur'a geçen ay için 12,5 saatlik fatura taslağı hazırla</button>
@@ -14,7 +14,7 @@
       <button type="button" class="small secondary" onclick="ask(this.textContent)">Bu yıl ne kadar kâr ettim, ne kadar vergi ayırmalıyım?</button>
       <button type="button" class="small secondary" onclick="ask(this.textContent)">Hangi faturalar hâlâ ödenmedi?</button>
     </div></div>{% endif %}
-  <div id="typing" class="msg ai typing" hidden><span></span><span></span><span></span></div>
+  <div id="typing" class="ai-row" hidden>{{ mascot() }}<div class="msg ai typing"><span></span><span></span><span></span></div></div>
   <form id="f" class="composer" onsubmit="send(event)">
     <textarea id="t" rows="2" placeholder="Write in Turkish, German or English… (Enter to send, Shift+Enter for a new line)" autofocus></textarea>
     <button id="b">Send</button>

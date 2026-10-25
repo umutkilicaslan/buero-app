@@ -1,6 +1,16 @@
-{% extends "base.html" %}{% from "_status.html" import status %}
+{% extends "base.html" %}{% from "_status.html" import status %}{% from "_mascot.html" import mascot %}
 {% block content %}
-<div class="head"><h1>Overview {{ year }}</h1><span class="muted">{{ today|d }}</span></div>
+{% set todo = (1 if open_tx else 0) + (1 if missing_receipts else 0) + drafts|length + overdue|length %}
+{% set first = (settings.name or '').split(' ')[0] %}
+<div class="hello">{{ mascot() }}
+  <div><h1>{{ greeting }}{% if first %}, {{ first }}{% endif %}!</h1>
+  <p>{% if not settings.complete %}Let's set up your business details first, it takes two minutes.
+     {% elif todo == 0 %}Nothing to do right now. Enjoy your day!
+     {% elif todo == 1 %}Just one thing waiting for you below.
+     {% else %}{{ todo }} small things waiting for you below. One at a time, you've got this.{% endif %}</p></div>
+  <span class="muted small" style="margin-left:auto;align-self:flex-start">{{ today|d }}</span>
+</div>
+<h2 style="margin-top:0">Overview {{ year }}</h2>
 
 <div class="kpis">
   <div class="kpi"><div class="label">Received this year</div><div class="value">{{ eur(revenue) }}</div>
@@ -31,7 +41,7 @@
     {% for i in open_invoices %}<tr><td><a href="/invoices/{{ i.id }}">{{ i.number }}</a></td><td>{{ i.client.name }}</td>
       <td class="hide-sm">{{ i.due_date|d }}</td><td class="r">{{ eur(i.outstanding) }}</td><td>{{ status(i, today) }}</td></tr>{% endfor %}
     </tbody></table>
-    {% else %}<div class="empty"><strong>All paid</strong>No open invoices.</div>{% endif %}
+    {% else %}<div class="empty"><strong>All paid 🎉</strong>No open invoices.</div>{% endif %}
   </div>
 
   <div class="card"><h3>Income per month {{ year }}</h3>
