@@ -4,6 +4,7 @@
 # dependencies from Homebrew into the bundle.
 import os
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -38,11 +39,22 @@ def _own_copies(binaries, datas):
     libraries by file name, so it links Pango to Pillow's copy (a symlink in the top folder), a
     different build than the HarfBuzz WeasyPrint opens. Use Homebrew's files there instead."""
     brew_lib = Path(os.environ.get("HOMEBREW_PREFIX", "/opt/homebrew")) / "lib"
-    replaced = set()
-    for dest, src, kind in datas + binaries:
-        if kind == "SYMLINK" and "/" not in dest and "/" in src and (brew_lib / dest).exists():
-            print(f"buero.spec: {dest} linked to {src}, using Homebrew's copy")
-            replaced.add(dest)
+    links = {dest for dest, src, kind in datas + binaries
+             if kind == "SYMLINK" and "/" not in dest and "/" in src and (brew_lib / dest).exists()}
+    # Only the ones Homebrew's libraries (Pango, HarfBuzz...) need; Pillow keeps the rest.
+    todo = [src for dest, src, kind in binaries if kind == "BINARY" and "/" not in dest and src.startswith(str(brew_lib.parent))]
+    replaced, seen = set(), set()
+    while todo:
+        lib = todo.pop()
+        if lib in seen:
+            continue
+        seen.add(lib)
+        out = subprocess.run(["otool", "-L", lib], capture_output=True, text=True).stdout
+        for name in {os.path.basename(line.split()[0]) for line in out.splitlines()[1:] if line.strip()}:
+            if name in links and name not in replaced:
+                print(f"buero.spec: {name} was linked to Pillow's copy, using Homebrew's")
+                replaced.add(name)
+                todo.append(os.path.realpath(brew_lib / name))
     drop = lambda toc: [e for e in toc if not (e[2] == "SYMLINK" and e[0] in replaced)]
     binaries = drop(binaries) + [(n, os.path.realpath(brew_lib / n), "BINARY") for n in sorted(replaced)]
     return binaries, drop(datas)
