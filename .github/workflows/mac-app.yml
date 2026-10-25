@@ -46,7 +46,14 @@ jobs:
           otool -L dist/Buero.app/Contents/Frameworks/libpango-1.0.0.dylib || true
 
       - name: Self-test with Homebrew present
-        run: FC_DEBUG=1 dist/Buero.app/Contents/MacOS/Buero --selftest 2>&1 | tail -60
+        run: |
+          set +e
+          DYLD_PRINT_LIBRARIES=1 dist/Buero.app/Contents/MacOS/Buero --selftest > selftest.log 2>&1
+          status=$?
+          grep -iE "harfbuzz|pango|fontconfig|gobject" selftest.log | sort | uniq -c
+          grep -v "dyld\[" selftest.log | tail -40
+          ls -l dist/Buero.app/Contents/Frameworks | grep -iE "harfbuzz|pango"
+          exit 0
 
       - name: Self-test without Homebrew libraries
         run: |

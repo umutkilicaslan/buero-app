@@ -3,6 +3,7 @@
 # The weasyprint hook (pyinstaller-hooks-contrib) copies Pango, HarfBuzz, fontconfig and their
 # dependencies from Homebrew into the bundle.
 import os
+import re
 import tomllib
 from pathlib import Path
 
@@ -34,20 +35,19 @@ a = Analysis(
 
 # Homebrew ships each library under two names (libharfbuzz.dylib -> libharfbuzz.0.dylib) and the
 # hook copies both. Two copies load as two separate libraries: Pango then hands a HarfBuzz font to
-# the other copy, which crashes (bus error). Keep one real file per library, the rest as symlinks.
+# the other copy, which crashes (bus error). Keep the versioned file, make the plain name a symlink.
 def _dedupe(binaries):
-    groups = {}
-    for dest, src, kind in binaries:
-        if kind == "BINARY" and dest.endswith(".dylib"):
-            groups.setdefault(os.path.realpath(src), []).append(dest)
+    dylibs = {dest for dest, _src, kind in binaries if kind == "BINARY" and dest.endswith(".dylib")}
     links = {}
-    for dests in groups.values():
-        keep = max(dests, key=lambda d: (os.path.basename(d).count("."), d))
-        for d in dests:
-            if d != keep:
-                links[d] = os.path.relpath(keep, os.path.dirname(d) or ".")
-    for d, target in sorted(links.items()):
-        print(f"buero.spec: {d} -> {target}")
+    for dest in dylibs:
+        folder, name = os.path.split(dest)
+        versioned = re.compile(re.escape(name[:-len(".dylib")]) + r"(\.\d+)+\.dylib$")
+        candidates = sorted(d for d in dylibs if os.path.dirname(d) == folder and versioned.match(os.path.basename(d)))
+        if candidates:
+            links[dest] = os.path.basename(candidates[0])
+    for dest, src, kind in binaries:
+        if dest in links or "harfbuzz" in dest:
+            print(f"buero.spec: {dest} ({src}) -> {links.get(dest, 'kept')}")
     return [(d, links[d], "SYMLINK") if d in links else (d, src, kind) for d, src, kind in binaries]
 
 
