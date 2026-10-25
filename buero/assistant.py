@@ -586,7 +586,7 @@ def run_tool(s: Session, conv: Conversation, name: str, args) -> str:
 # ---------- the chat loop ----------
 
 SYSTEM = """You are the bookkeeping assistant inside "Büro", a local invoicing and bookkeeping app of a \
-freelancer in Berlin, Germany. Today is {today}. The user is {name}{ku}.
+freelancer in Germany ({city}). Today is {today}. The user is {name}{ku}.
 
 How you work:
 - Always reply in the language the user writes in (often Turkish or German). Be short and friendly.
@@ -635,7 +635,7 @@ def chat(s: Session, conv: Conversation, user_text: str, url: str, model: str) -
         raise BusinessError("Write a message first.")
     st = services.get_settings(s)
     ku = services.is_kleinunternehmer(s, date.today().year)
-    system = SYSTEM.format(today=date.today().isoformat(), name=st.name or "the freelancer",
+    system = SYSTEM.format(today=date.today().isoformat(), name=st.name or "the freelancer", city=st.city or "city not set",
                            ku=" (Kleinunternehmer, § 19 UStG)" if ku else " (charges VAT)")
     conv.messages.append({"role": "user", "content": user_text})
     conv.display.append({"role": "user", "text": user_text})

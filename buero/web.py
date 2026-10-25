@@ -25,6 +25,7 @@ templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.globals.update(eur=money.fmt_eur, qty=money.fmt_qty, vat_labels=vat.LABELS,
                              categories=catalog.CATEGORIES, category_by_key=catalog.CATEGORY_BY_KEY,
                              euer_lines=catalog.EUER_LINES, payment_methods=bookkeeping.PAYMENT_METHODS)
+templates.env.globals["data_dir"] = config.data_dir
 templates.env.filters["d"] = lambda v: v.strftime("%d.%m.%Y") if v else ""
 
 app = FastAPI(title="Büro")
@@ -101,6 +102,8 @@ def dashboard(request: Request, s: Session = Depends(get_session)):
     hour = datetime.now().hour
     greeting = "Good morning" if 5 <= hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
     return page(request, "dashboard.html", s, year=year, open_invoices=open_inv, drafts=drafts, greeting=greeting,
+                has_clients=bool(s.scalar(select(func.count()).select_from(Client))),
+                has_invoices=bool(s.scalar(select(func.count()).select_from(Invoice))),
                 overdue=[i for i in open_inv if i.is_overdue(today)],
                 open_total=sum((i.outstanding for i in open_inv), Decimal("0")),
                 problems=services.check_numbering(s), revenue=revenue, euer=eu,
@@ -978,6 +981,7 @@ def assistant_page(request: Request, c: str = "", s: Session = Depends(get_sessi
         return back("/settings#ai", err="Switch on the assistant first.")
     conv = assistant.conversation(c or None)
     return page(request, "assistant.html", s, conv=conv, chat_html=_chat_html(request, conv),
+                example_client=s.scalar(select(Client.name).order_by(Client.id.desc()).limit(1)),
                 ai_status=assistant.status(st.ai_url, st.ai_model))
 
 

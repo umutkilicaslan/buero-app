@@ -10,6 +10,13 @@
      {% else %}{{ todo }} small things waiting for you below. One at a time, you've got this.{% endif %}</p></div>
   <span class="muted small" style="margin-left:auto;align-self:flex-start">{{ today|d }}</span>
 </div>
+{% if not settings.complete or not has_clients or not has_invoices %}
+<div class="card getting-started"><h3>Getting started</h3>
+  <div class="deadline"><span>{{ '✅' if settings.complete else '1️⃣' }} Your name, address, Steuernummer and IBAN</span>{% if not settings.complete %}<a href="/settings">Fill in →</a>{% endif %}</div>
+  <div class="deadline"><span>{{ '✅' if has_clients else '2️⃣' }} Add your first client</span>{% if not has_clients %}<a href="/clients/new">Add client →</a>{% endif %}</div>
+  <div class="deadline"><span>{{ '✅' if has_invoices else '3️⃣' }} Write your first invoice</span>{% if not has_invoices %}<a href="/invoices?new=1">New invoice →</a>{% endif %}</div>
+  <p class="small muted" style="margin:10px 0 0">Coming from another tool? In Settings you can continue your invoice numbers, and the Bank page imports your bank's CSV export.</p>
+</div>{% endif %}
 <h2 style="margin-top:0">Overview {{ year }}</h2>
 
 <div class="kpis">

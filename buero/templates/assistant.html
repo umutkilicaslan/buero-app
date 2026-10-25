@@ -9,10 +9,11 @@
   {% if not conv.display %}<div id="empty" class="empty">{{ mascot() }}<strong>Hi, I'm Pip! What should I do?</strong>
     I can look things up and prepare drafts. Nothing is saved until you press <em>Apply</em>.
     <div class="chips">
-      <button type="button" class="small secondary" onclick="ask(this.textContent)">GrenzKultur'a geçen ay için 12,5 saatlik fatura taslağı hazırla</button>
-      <button type="button" class="small secondary" onclick="ask(this.textContent)">Açık bankadaki hareketlerden hangileri gider olabilir?</button>
-      <button type="button" class="small secondary" onclick="ask(this.textContent)">Bu yıl ne kadar kâr ettim, ne kadar vergi ayırmalıyım?</button>
-      <button type="button" class="small secondary" onclick="ask(this.textContent)">Hangi faturalar hâlâ ödenmedi?</button>
+      {% set c1 = example_client or 'my client' %}
+      <button type="button" class="small secondary" onclick="ask(this.textContent)">Prepare a draft invoice for {{ c1 }} for last month, 10 hours</button>
+      <button type="button" class="small secondary" onclick="ask(this.textContent)">Which open bank transactions could be expenses?</button>
+      <button type="button" class="small secondary" onclick="ask(this.textContent)">How much profit did I make this year, and how much tax should I set aside?</button>
+      <button type="button" class="small secondary" onclick="ask(this.textContent)">Which invoices are still unpaid?</button>
     </div></div>{% endif %}
   <div id="typing" class="ai-row" hidden>{{ mascot() }}<div class="msg ai typing"><span></span><span></span><span></span></div></div>
   <form id="f" class="composer" onsubmit="send(event)">

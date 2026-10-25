@@ -78,3 +78,13 @@ def test_backup_and_export(s, client, tmp_path):
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         assert "2026/Rechnungen.csv" in z.namelist() and any("Rechnungen/" in n for n in z.namelist())
         assert "2026-01" in z.read("2026/Rechnungen.csv").decode("utf-8-sig")
+
+
+def test_data_dir_keeps_existing_folder(tmp_path, monkeypatch):
+    from buero import config
+    monkeypatch.delenv("BUERO_DATA_DIR", raising=False)
+    monkeypatch.setattr(config, "LEGACY_DATA_DIR", tmp_path / "Freelance" / "buero-daten")
+    monkeypatch.setattr(config, "DEFAULT_DATA_DIR", tmp_path / "Documents" / "Büro")
+    assert config.data_dir() == tmp_path / "Documents" / "Büro"
+    (tmp_path / "Freelance" / "buero-daten").mkdir(parents=True)
+    assert config.data_dir() == tmp_path / "Freelance" / "buero-daten"

@@ -2,11 +2,16 @@
 import os
 from pathlib import Path
 
-DEFAULT_DATA_DIR = Path.home() / "Freelance" / "buero-daten"
+LEGACY_DATA_DIR = Path.home() / "Freelance" / "buero-daten"  # first installs used this folder
+DEFAULT_DATA_DIR = Path.home() / "Documents" / "Büro"
+
+
+def default_data_dir() -> Path:
+    return LEGACY_DATA_DIR if LEGACY_DATA_DIR.exists() else DEFAULT_DATA_DIR
 
 
 def data_dir() -> Path:
-    path = Path(os.environ.get("BUERO_DATA_DIR", DEFAULT_DATA_DIR)).expanduser()
+    path = Path(os.environ.get("BUERO_DATA_DIR") or default_data_dir()).expanduser()
     path.mkdir(parents=True, exist_ok=True)
     return path
 

@@ -82,7 +82,7 @@ shows the invoice as a web page instead.
 
 ## Where your data is
 
-Default: `~/Freelance/buero-daten/` (change with `BUERO_DATA_DIR=/some/folder uv run buero`).
+Default: `~/Documents/Büro/` (installs that already use `~/Freelance/buero-daten/` keep that folder) (change with `BUERO_DATA_DIR=/some/folder uv run buero`).
 
 ```
 buero-daten/
@@ -105,7 +105,7 @@ None of this is inside the code folder, and `.gitignore` excludes it anyway.
   uv run buero-backup /Volumes/MyDisk/buero-backups
   ```
 - Keep at least one copy outside the laptop (Time Machine, external disk, encrypted cloud folder).
-- Restore: copy the `buero-daten` folder back (from a ZIP: unzip it into `~/Freelance/buero-daten`).
+- Restore: copy the `buero-daten` folder back (from a ZIP: unzip it into your data folder).
 
 Retention: invoices and receipts 8 years, books and reports 10 years. The app never deletes anything.
 
@@ -122,7 +122,7 @@ Retention: invoices and receipts 8 years, books and reports 10 years. The app ne
   original, then optionally opens a new draft with the same items.
 - Every change is written to the **Audit log**.
 - Process description for the tax office: [docs/Verfahrensdokumentation.md](docs/Verfahrensdokumentation.md)
-  Copy it to `~/Freelance/buero-daten/Verfahrensdokumentation.md` and fill in the gaps marked `[…]`;
+  Copy it into your data folder as `Verfahrensdokumentation.md` and fill in the gaps marked `[…]`;
   the yearly export ZIP then includes your filled-in copy.
 
 ## VAT note on invoices

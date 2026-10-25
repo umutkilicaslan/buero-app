@@ -31,7 +31,7 @@ class Settings(Base):
     business_name: Mapped[str] = mapped_column(String, default="")
     street: Mapped[str] = mapped_column(String, default="")
     postal_code: Mapped[str] = mapped_column(String, default="")
-    city: Mapped[str] = mapped_column(String, default="Berlin")
+    city: Mapped[str] = mapped_column(String, default="")
     email: Mapped[str] = mapped_column(String, default="")
     phone: Mapped[str] = mapped_column(String, default="")
     tax_number: Mapped[str] = mapped_column(String, default="")  # Steuernummer
