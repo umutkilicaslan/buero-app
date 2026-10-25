@@ -37,17 +37,17 @@ a = Analysis(
 # hook copies both. Two copies load as two separate libraries: Pango then hands a HarfBuzz font to
 # the other copy, which crashes (bus error). Keep the versioned file, make the plain name a symlink.
 def _dedupe(binaries):
-    # PyInstaller may satisfy Pango's @rpath/libharfbuzz.0.dylib with Pillow's private copy (a
-    # different build than the one WeasyPrint opens). Use Homebrew's file for those top-level names.
+    # Pillow brings its own libharfbuzz.0.dylib (and others). PyInstaller matches libraries by file
+    # name, so it lets Pango use Pillow's copy, a different build than the one WeasyPrint opens.
+    # Put Homebrew's file at the top level too, so Pango and WeasyPrint share one HarfBuzz.
     brew_lib = Path(os.environ.get("HOMEBREW_PREFIX", "/opt/homebrew")) / "lib"
-    fixed = []
-    for dest, src, kind in binaries:
-        if kind == "SYMLINK" and "/" not in dest and "/" in src and (brew_lib / dest).exists():
-            print(f"buero.spec: {dest} was a link to {src}, using Homebrew's copy")
-            fixed.append((dest, os.path.realpath(brew_lib / dest), "BINARY"))
-        else:
-            fixed.append((dest, src, kind))
-    binaries = fixed
+    top = {dest for dest, _src, _kind in binaries if "/" not in dest}
+    for dest, _src, kind in list(binaries):
+        name = os.path.basename(dest)
+        if kind == "BINARY" and "/" in dest and name not in top and (brew_lib / name).exists():
+            print(f"buero.spec: adding Homebrew's {name} next to {dest}")
+            binaries.append((name, os.path.realpath(brew_lib / name), "BINARY"))
+            top.add(name)
     dylibs = {dest for dest, _src, kind in binaries if kind == "BINARY" and dest.endswith(".dylib")}
     links = {}
     for dest in dylibs:
