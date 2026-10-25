@@ -1,0 +1,89 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>{{ 'Expense' if e.id else 'New expense' }}{% if e.voided %} <span class="badge cancelled">void</span>{% endif %}</h1></div>
+{% if notice %}<div class="note info">{{ notice }}</div>{% endif %}
+{% if tx %}<div class="note info">From bank: <strong>{{ tx.booking_date|d }}</strong> · {{ tx.counterparty }} · {{ eur(tx.amount) }}<br><span class="small">{{ tx.purpose }}</span></div>{% endif %}
+{% if e.voided %}<div class="note err">Voided: {{ e.void_reason }}. It stays in the records but does not count.</div>{% endif %}
+<div class="split">
+<form method="post" action="/expenses/save" enctype="multipart/form-data" id="ef">
+<input type="hidden" name="id" value="{{ e.id or '' }}">
+<input type="hidden" name="transaction_id" value="{{ e.transaction_id or '' }}">
+<input type="hidden" name="source" value="{{ e.source or '' }}">
+{% if pending %}<input type="hidden" name="pending_receipt" value="{{ pending }}">{% endif %}
+{% if tx %}<input type="hidden" name="next" value="bank">{% endif %}
+<div class="card">
+  <div class="grid">
+    <div><label>Date paid *</label><input type="date" name="date" value="{{ e.date or '' }}" required></div>
+    <div><label>Vendor *</label><input name="vendor" value="{{ e.vendor or '' }}" required></div>
+    <div><label>Their invoice number</label><input name="vendor_invoice_number" value="{{ e.vendor_invoice_number or '' }}"></div>
+  </div>
+  <div style="margin-top:12px"><label>Category *</label><select name="category" id="cat" required onchange="hint()">
+    <option value="">Choose…</option>
+    {% for c in categories %}<option value="{{ c.key }}" data-hint="{{ c.hint }}" data-vat="{{ c.default_vat }}" {{ 'selected' if c.key == e.category }}>{{ c.label }}</option>{% endfor %}</select>
+    <div class="hint" id="cathint"></div></div>
+  <div style="margin-top:12px"><label>What was it for?</label><textarea name="description" placeholder="Short note, e.g. 5 Jonglierbälle für Workshop">{{ e.description or '' }}</textarea></div>
+</div>
+<div class="card"><h3>Amount</h3>
+  <div class="grid">
+    <div><label>Amount paid in EUR (gross) *</label><input name="gross_eur" id="gross" inputmode="decimal" value="{{ qty(e.gross_eur) if e.gross_eur is not none else '' }}" required oninput="calc()"></div>
+    <div><label>VAT rate on the receipt</label><select name="vat_rate" id="rate" onchange="calc()">
+      {% for r in ('19','7','0') %}<option value="{{ r }}" {{ 'selected' if e.vat_rate is not none and qty(e.vat_rate) == r }}>{{ r }} %</option>{% endfor %}</select></div>
+    <div><label>VAT amount (calculated)</label><input name="vat_eur" id="vat" inputmode="decimal" value="{{ qty(e.vat_eur) if (e.id or e.source == 'einvoice') and e.vat_eur is not none else '' }}" placeholder="auto">
+      <div class="hint">Only change if the receipt shows a different amount.</div></div>
+    <div><label>Business share %</label><input name="business_share" inputmode="decimal" value="{{ qty(e.business_share) if e.business_share is not none else '100' }}">
+      <div class="hint">e.g. 20 for a phone you also use privately.</div></div>
+  </div>
+  <details style="margin-top:12px" {{ 'open' if e.currency != 'EUR' or e.reverse_charge or e.useful_life_years }}><summary>Foreign currency, foreign vendor, asset</summary>
+    <div class="grid" style="margin-top:12px">
+      <div><label>Original currency</label><input name="currency" value="{{ e.currency or 'EUR' }}" maxlength="3"></div>
+      <div><label>Amount in original currency</label><input name="amount_original" inputmode="decimal" value="{{ qty(e.amount_original) if e.amount_original is not none else '' }}">
+        <div class="hint">EUR amount above = what left your account.</div></div>
+      <div><label>Vendor abroad without VAT on invoice (§ 13b)</label><select name="reverse_charge">
+        <option value="" {{ 'selected' if not e.reverse_charge }}>No</option>
+        <option value="eu" {{ 'selected' if e.reverse_charge=='eu' }}>Yes, EU vendor (e.g. Google Ireland)</option>
+        <option value="non_eu" {{ 'selected' if e.reverse_charge=='non_eu' }}>Yes, non-EU vendor (e.g. US company)</option></select>
+        <div class="hint">You then owe the German VAT yourself (reverse charge). Also as Kleinunternehmer!</div></div>
+      <div><label>Useful life in years (assets > 800 € net)</label><input name="useful_life_years" type="number" min="1" max="50" value="{{ e.useful_life_years or '' }}">
+        <div class="hint">Computer/software: 1. Furniture: 13. Camera: 7. See AfA-Tabelle.</div></div>
+    </div>
+  </details>
+</div>
+<div class="card"><h3>Receipt</h3>
+  {% if pending %}<p class="small">📎 {{ pending.split('__')[1] }} will be stored with this expense.</p>{% endif %}
+  <input type="file" name="receipts" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.webp,.xml">
+  <div class="hint">PDF or photo. Stored unchanged with a checksum; it can never be deleted.</div>
+</div>
+{% if not e.voided %}<div class="sticky-actions"><button>Save expense</button>{% if tx %}<a class="btn secondary" href="/bank">Cancel</a>{% endif %}</div>{% endif %}
+</form>
+
+<div>
+  {% if e.id %}
+  <div class="card"><h3>Receipts</h3>
+    {% for r in e.receipts %}<div class="deadline small"><a href="/receipts/{{ r.id }}" target="_blank">{{ r.original_name }}</a><span class="muted">{{ (r.size / 1024)|round|int }} KB</span></div>
+    {% else %}<p class="small muted">{{ 'No receipt needed for flat rates.' if e.category in ('meals_travel','car_km') else 'No receipt yet.' }}</p>{% endfor %}
+    {% if not e.voided %}<form method="post" action="/expenses/{{ e.id }}/receipt" enctype="multipart/form-data"><input type="file" name="receipts" multiple><p><button class="secondary small">Add receipt</button></p></form>{% endif %}
+  </div>
+  {% if schedule %}<div class="card"><h3>Depreciation (AfA)</h3>{% for y, v in schedule.items() %}<div class="deadline small"><span>{{ y }}</span><span class="num">{{ eur(v) }}</span></div>{% endfor %}</div>{% endif %}
+  {% if not e.voided %}<details class="card"><summary>Void this expense</summary>
+    <form method="post" action="/expenses/{{ e.id }}/void" style="margin-top:10px"><label>Reason</label><input name="reason" required placeholder="e.g. booked twice">
+    <p><button class="danger small">Void</button></p></form></details>{% endif %}
+  <div class="card"><h3>History</h3>{% for r in log %}<div class="deadline small"><span>{{ r.action }}</span><span class="muted">{{ r.ts.strftime('%d.%m.%Y %H:%M') }}</span></div>{% endfor %}</div>
+  {% else %}
+  <div class="card"><h3>Tips</h3><ul class="small" style="padding-left:18px;margin:0">
+    <li>Kleinunternehmer: the full amount counts as cost.</li>
+    <li>Health insurance, private rent, gym, clothes for everyday use: not business expenses.</li>
+    <li>Items over 800 € net: choose “Asset”, the cost is spread over several years.</li>
+    <li>Trips: tickets fully; meals as daily flat rate (14 € / 28 €).</li></ul></div>
+  {% endif %}
+</div>
+</div>
+<script>
+function num(v){ v=(v||'').trim(); if(!v) return 0; if(v.includes(',')) v=v.replace(/\./g,'').replace(',','.'); const n=parseFloat(v); return isNaN(n)?0:n; }
+function calc(){ const g=num(document.getElementById('gross').value), r=num(document.getElementById('rate').value); const v=document.getElementById('vat');
+  if(!v.dataset.touched){ v.value = r ? (Math.round(g*r/(100+r)*100)/100).toFixed(2).replace('.',',') : '0,00'; } }
+const vatEl=document.getElementById('vat'); if(vatEl.value) vatEl.dataset.touched='1';
+vatEl.addEventListener('input', e=>{ e.target.dataset.touched=e.target.value?'1':''; });
+function hint(){ const o=document.getElementById('cat').selectedOptions[0]; document.getElementById('cathint').textContent=o?o.dataset.hint||'':'';
+  {% if not e.id and e.source != 'einvoice' %}if(o && o.dataset.vat){ document.getElementById('rate').value=String(parseInt(o.dataset.vat)); calc(); }{% endif %} }
+hint(); {% if not e.id %}calc();{% endif %}
+</script>
+{% endblock %}

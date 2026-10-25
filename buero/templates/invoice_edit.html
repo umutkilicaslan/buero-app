@@ -1,0 +1,77 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>Draft invoice</h1><span class="badge info">will get no. {{ next_number }}</span></div>
+<form method="post" action="/invoices/{{ inv.id }}/save" id="f">
+<div class="card">
+  <div class="grid">
+    <div><label>Client</label><select name="client_id">{% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if c.id == inv.client_id }}>{{ c.name }}</option>{% endfor %}</select></div>
+    <div><label>Service from *</label><input type="date" name="service_from" value="{{ inv.service_from or '' }}" required></div>
+    <div><label>Service to (for a period)</label><input type="date" name="service_to" value="{{ inv.service_to or '' }}"></div>
+    <div><label>Invoice date</label><input type="date" name="issue_date" value="{{ inv.issue_date or '' }}"><div class="hint">Empty = the day you issue it.</div></div>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button type="button" class="ghost small" onclick="setMonth(0)">This month</button>
+    <button type="button" class="ghost small" onclick="setMonth(-1)">Last month</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Items</h3>
+  <table class="lines" id="lines">
+    <thead><tr><th style="width:48%">Description</th><th>Qty</th><th>Unit</th><th>Price €</th><th class="r">Amount</th><th></th></tr></thead>
+    <tbody>
+    {% for ln in inv.lines %}{% include "_line.html" %}{% endfor %}
+    {% if not inv.lines %}{% set ln = none %}{% include "_line.html" %}{% endif %}
+    </tbody>
+  </table>
+  <p><button type="button" class="secondary small" onclick="addRow()">+ Add line</button></p>
+  <table class="totals">
+    <tr id="row-net" {{ 'hidden' if not inv.vat_rate }}><td>Net</td><td class="r" id="t-net">{{ eur(inv.net_total) }}</td></tr>
+    <tr id="row-vat" {{ 'hidden' if not inv.vat_rate }}><td>VAT <span id="t-rate">{{ qty(inv.vat_rate) }}</span> %</td><td class="r" id="t-vat">{{ eur(inv.vat_total) }}</td></tr>
+    <tr class="grand"><td>Total</td><td class="r" id="t-gross">{{ eur(inv.gross_total) }}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>VAT</h3>
+  <p style="margin:0 0 6px"><strong>{{ decision.label }}</strong> <span class="muted small">· {{ decision.reason }}</span></p>
+  {% if decision.note(inv.language) %}<p class="small" style="margin:0"><em>“{{ decision.note(inv.language) }}”</em></p>{% endif %}
+  {% for w in decision.warnings %}<div class="note warn">{{ w }}</div>{% endfor %}
+  <details style="margin-top:10px"><summary>More options</summary>
+    <div class="grid" style="margin-top:12px">
+      <div><label>Language</label><select name="language"><option value="de" {{ 'selected' if inv.language=='de' }}>Deutsch</option><option value="en" {{ 'selected' if inv.language=='en' }}>English</option></select></div>
+      <div><label>VAT treatment</label><select name="vat_override">
+        <option value="">Automatic (recommended)</option>
+        {% for k, l in vat_labels.items() %}<option value="{{ k }}" {{ 'selected' if inv.vat_override==k }}>{{ l }}</option>{% endfor %}</select></div>
+    </div>
+    <div style="margin-top:12px"><label>Text above the items (optional)</label><textarea name="intro_text" placeholder="e.g. Für die Kurse im September berechne ich wie vereinbart:">{{ inv.intro_text }}</textarea></div>
+  </details>
+</div>
+
+{% for p in problems %}<div class="note warn">Before issuing: {{ p }}</div>{% endfor %}
+
+<div class="sticky-actions">
+  <button name="action" value="save">Save draft</button>
+  <a class="btn secondary" href="/invoices/{{ inv.id }}/pdf" target="_blank">Preview PDF</a>
+  <button name="action" value="issue" class="secondary"
+    onclick="return confirm('Issue this invoice now?\n\nIt gets number {{ next_number }} and the PDF is archived. Afterwards it can never be changed or deleted (GoBD), only cancelled with a Storno.')">Save &amp; issue</button>
+</div>
+</form>
+<form method="post" action="/invoices/{{ inv.id }}/delete" onsubmit="return confirm('Delete this draft?')" style="margin-top:14px"><button class="danger small">Delete draft</button></form>
+<template id="rowtpl">{% set ln = none %}{% include "_line.html" %}</template>
+<script>
+const rate = {{ inv.vat_rate }};
+const de = '{{ inv.language }}' === 'de';
+function num(v){ v=(v||'').trim(); if(!v) return 0; if(v.includes(',')) v=v.replace(/\./g,'').replace(',','.'); const n=parseFloat(v); return isNaN(n)?0:n; }
+function r2(x){ return Math.round((x+Number.EPSILON)*100)/100; }
+function fmt(x){ return x.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+function recalc(){ let net=0; document.querySelectorAll('#lines tbody tr').forEach(tr=>{ const q=num(tr.querySelector('[name=quantity]').value)||(tr.querySelector('[name=unit_price]').value?1:0); const p=num(tr.querySelector('[name=unit_price]').value); const a=r2(q*p); net+=a; tr.querySelector('.amt').textContent=a?fmt(a):''; });
+  net=r2(net); const vat=r2(net*rate/100); document.getElementById('t-net').textContent=fmt(net); document.getElementById('t-vat').textContent=fmt(vat); document.getElementById('t-gross').textContent=fmt(r2(net+vat)); }
+function addRow(){ document.querySelector('#lines tbody').appendChild(document.getElementById('rowtpl').content.cloneNode(true)); bind(); document.querySelector('#lines tbody tr:last-child input').focus(); }
+function delRow(b){ const rows=document.querySelectorAll('#lines tbody tr'); if(rows.length>1){ b.closest('tr').remove(); } else { b.closest('tr').querySelectorAll('input').forEach(i=>{ if(i.name!=='unit') i.value=''; }); } recalc(); }
+function bind(){ document.querySelectorAll('#lines input').forEach(i=>i.oninput=recalc); }
+function iso(d){ return d.toISOString().slice(0,10); }
+function setMonth(off){ const n=new Date(); const a=new Date(Date.UTC(n.getFullYear(), n.getMonth()+off, 1)); const b=new Date(Date.UTC(n.getFullYear(), n.getMonth()+off+1, 0));
+  document.querySelector('[name=service_from]').value=iso(a); document.querySelector('[name=service_to]').value=iso(b); }
+bind(); recalc();
+</script>
+{% endblock %}

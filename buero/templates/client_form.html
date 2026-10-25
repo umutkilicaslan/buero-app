@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% from "_status.html" import status %}{% block content %}
+<div class="head"><h1>{{ client.name or 'New client' }}</h1>
+{% if client.id %}<form method="post" action="/invoices/new"><input type="hidden" name="client_id" value="{{ client.id }}"><button>+ New invoice</button></form>{% endif %}</div>
+<form method="post" action="/clients/save">
+  <input type="hidden" name="id" value="{{ client.id or '' }}">
+  <div class="card"><h3>Address</h3>
+  <div class="grid">
+    <div><label>Name *</label><input name="name" value="{{ client.name or '' }}" required></div>
+    <div><label>Contact person</label><input name="contact_person" value="{{ client.contact_person or '' }}"></div>
+    <div><label>Street and number *</label><input name="street" value="{{ client.street or '' }}"></div>
+    <div><label>Postal code *</label><input name="postal_code" value="{{ client.postal_code or '' }}"></div>
+    <div><label>City *</label><input name="city" value="{{ client.city or '' }}"></div>
+    <div><label>Country code</label><input name="country" value="{{ client.country or 'DE' }}" maxlength="2" placeholder="DE">
+      <div class="hint">DE, AT, NL, US, CH …</div></div>
+    <div><label>Email (for invoices)</label><input name="email" type="email" value="{{ client.email or '' }}"></div>
+    <div><label>Default hourly rate (€)</label><input name="default_hourly_rate" inputmode="decimal" value="{{ qty(client.default_hourly_rate) if client.default_hourly_rate is not none else '' }}"></div>
+  </div>
+  <label class="check" style="margin-top:14px"><input type="checkbox" name="is_business" {{ 'checked' if client.is_business }}> This is a company or organisation (not a private person)</label>
+  </div>
+  <div class="card"><h3>Tax</h3>
+  <div class="grid">
+    <div><label>VAT ID (USt-IdNr) of the client</label><input name="vat_id" value="{{ client.vat_id or '' }}" placeholder="ATU12345678">
+      <div class="hint">Needed for EU clients (reverse charge).</div></div>
+    <div><label>Leitweg-ID (public authorities only)</label><input name="leitweg_id" value="{{ client.leitweg_id or '' }}" placeholder="991-12345-67">
+      <div class="hint">If set, you can download an XRechnung for this client.</div></div>
+    <div><label>VAT exemption for your work for this client</label><select name="exemption">
+      <option value="" {{ 'selected' if not client.exemption }}>None</option>
+      <option value="4_25" {{ 'selected' if client.exemption=='4_25' }}>§ 4 Nr. 25 UStG – recognised youth welfare provider (Träger der Jugendhilfe)</option>
+      <option value="4_21" {{ 'selected' if client.exemption=='4_21' }}>§ 4 Nr. 21 b UStG – school / certified education institution</option></select></div>
+    <div><label>Evidence for the exemption</label><textarea name="exemption_evidence" placeholder="e.g. Anerkennung als Träger der freien Jugendhilfe nach § 75 SGB VIII, Bescheid vom …, Behörde …">{{ client.exemption_evidence or '' }}</textarea></div>
+  </div></div>
+  <div class="card"><label>Notes</label><textarea name="notes">{{ client.notes or '' }}</textarea></div>
+  <p><button>Save client</button></p>
+</form>
+{% if invoices %}<h2>Invoices</h2><div class="card flush"><table><tbody>
+{% for i in invoices %}<tr><td><a href="/invoices/{{ i.id }}">{{ i.number or 'Draft' }}</a></td><td>{{ i.issue_date|d }}</td>
+<td class="r">{{ eur(i.gross_total) }}</td><td class="r">{{ status(i, today) }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{% endblock %}

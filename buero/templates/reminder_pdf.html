@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="{{ lang }}"><head><meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 20mm 18mm 25mm 22mm; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 10pt; color: #222; line-height: 1.45; }
+  .sender-line { font-size: 7pt; color: #666; border-bottom: 0.5pt solid #999; display: inline-block; margin-bottom: 2mm; }
+  .me { float: right; text-align: right; font-size: 8.5pt; }
+  .address { margin-top: 12mm; min-height: 35mm; }
+  h1 { font-size: 15pt; margin: 10mm 0 5mm; }
+  table { border-collapse: collapse; margin: 4mm 0; }
+  td { padding: 1.2mm 6mm 1.2mm 0; } .r { text-align: right; } tr.total td { font-weight: 700; border-top: 1pt solid #222; }
+</style></head><body>
+<div class="me"><strong>{{ s.business_name or s.name }}</strong><br>{{ s.street }}<br>{{ s.postal_code }} {{ s.city }}<br>{{ s.email }}<br><br>{{ d(r.date) }}</div>
+<div class="address"><div class="sender-line">{{ s.name }} · {{ s.street }} · {{ s.postal_code }} {{ s.city }}</div><br>
+{{ c.name }}<br>{% if c.contact_person %}{{ c.contact_person }}<br>{% endif %}{{ c.street }}<br>{{ c.postal_code }} {{ c.city }}</div>
+<h1>{{ title }}: {{ L.invoice }} {{ inv.number }}</h1>
+<p>{{ T.greeting }}</p>
+<p>{{ body }}</p>
+<table>
+  <tr><td>{{ L.number }}</td><td>{{ inv.number }}</td></tr>
+  <tr><td>{{ L.date }}</td><td>{{ d(inv.issue_date) }}</td></tr>
+  <tr><td>{{ 'Ursprünglich fällig am' if lang == 'de' else 'Originally due' }}</td><td>{{ d(inv.due_date) }}</td></tr>
+  <tr><td>{{ 'Offener Betrag' if lang == 'de' else 'Outstanding' }}</td><td class="r">{{ eur(inv.outstanding) }}</td></tr>
+  {% if r.fee %}<tr><td>{{ 'Mahngebühr' if lang == 'de' else 'Reminder fee' }}</td><td class="r">{{ eur(r.fee) }}</td></tr>{% endif %}
+  <tr class="total"><td>{{ 'Zu zahlen' if lang == 'de' else 'Amount due' }}</td><td class="r">{{ eur(total) }}</td></tr>
+</table>
+<p>{{ L.bank }}: {{ s.bank_name }} · IBAN {{ s.iban }}{% if s.bic %} · BIC {{ s.bic }}{% endif %}<br>
+{{ 'Verwendungszweck' if lang == 'de' else 'Reference' }}: {{ inv.number }}</p>
+<p>{{ T.closing }}<br><br>{{ s.name }}</p>
+</body></html>

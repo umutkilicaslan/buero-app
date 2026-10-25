@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% from "_status.html" import yearpills %}{% block content %}
+<div class="head"><h1>Income {{ year }}</h1><a class="btn" href="/income/new">+ Other income</a></div>
+<div style="margin-bottom:14px">{{ yearpills('/income', years, year) }}</div>
+<div class="note info small">All money received, by payment date (as the tax office counts it). Invoice payments appear automatically.
+Use “Other income” for money without an invoice from this app, e.g. payments for invoices you wrote in Accountable.</div>
+<div class="card flush"><table>
+<thead><tr><th>Date</th><th>What</th><th class="hide-sm">Client</th><th class="hide-sm">VAT</th><th class="r">Amount</th></tr></thead><tbody>
+{% for i in items|reverse %}<tr><td>{{ i.date|d }}</td><td><a href="{{ i.link }}">{{ i.label[:60] }}</a></td><td class="hide-sm">{{ i.client }}</td>
+<td class="small muted hide-sm">{{ vat_labels[i.treatment] }}</td><td class="r">{{ eur(i.gross) }}</td></tr>
+{% else %}<tr><td colspan="5"><div class="empty"><strong>No income in {{ year }}</strong></div></td></tr>{% endfor %}
+</tbody>{% if items %}<tfoot><tr><th colspan="4">Total</th><th class="r">{{ eur(total) }}</th></tr></tfoot>{% endif %}</table></div>
+{% set voided = others|selectattr('voided')|list %}
+{% if voided %}<p class="small muted">{{ voided|length }} voided entries are kept in the records but not counted.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,13 @@
+# Personal data never goes into git
+buero-daten/
+*.sqlite3
+*.sqlite3-*
+invoices/
+receipts/
+backups/
+.env
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

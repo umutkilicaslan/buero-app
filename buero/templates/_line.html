@@ -1,0 +1,6 @@
+<tr><td><input name="description" value="{{ ln.description if ln else '' }}" placeholder="e.g. Zirkuspädagogik, Offenes Training"></td>
+<td><input name="quantity" value="{{ qty(ln.quantity) if ln else '' }}" inputmode="decimal" style="min-width:60px"></td>
+<td><input name="unit" value="{{ ln.unit if ln else 'Std.' }}" style="min-width:60px"></td>
+<td><input name="unit_price" value="{{ qty(ln.unit_price) if ln else '' }}" inputmode="decimal" style="min-width:70px"></td>
+<td class="r amt">{{ eur(ln.line_net) if ln else '' }}</td>
+<td><button type="button" class="ghost small" title="Remove line" onclick="delRow(this)">✕</button></td></tr>

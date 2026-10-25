@@ -1,0 +1,117 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>Settings</h1></div>
+<form method="post" action="/settings">
+<div class="card">
+  <h3>Your business</h3>
+  <div class="grid">
+    <div><label>Full name *</label><input name="name" value="{{ settings.name }}" required></div>
+    <div><label>Business name (optional)</label><input name="business_name" value="{{ settings.business_name }}"></div>
+    <div><label>Profession</label><input name="profession" value="{{ settings.profession }}" placeholder="e.g. Zirkuspädagoge"></div>
+    <div><label>Street and number *</label><input name="street" value="{{ settings.street }}"></div>
+    <div><label>Postal code *</label><input name="postal_code" value="{{ settings.postal_code }}"></div>
+    <div><label>City *</label><input name="city" value="{{ settings.city }}"></div>
+    <div><label>Email</label><input name="email" type="email" value="{{ settings.email }}"></div>
+    <div><label>Phone</label><input name="phone" value="{{ settings.phone }}"></div>
+  </div>
+</div>
+<div class="card">
+  <h3>Tax</h3>
+  <div class="grid">
+    <div><label>Steuernummer *</label><input name="tax_number" value="{{ settings.tax_number }}" placeholder="12/345/67890"></div>
+    <div><label>USt-IdNr (empty if none)</label><input name="vat_id" value="{{ settings.vat_id }}" placeholder="DE123456789">
+      <div class="hint">Needed only for EU clients (reverse charge). Free from the BZSt.</div></div>
+    <div><label>Type</label><select name="business_type">
+      <option value="freiberufler" {{ 'selected' if settings.business_type=='freiberufler' }}>Freiberufler (§ 18 EStG)</option>
+      <option value="gewerbe" {{ 'selected' if settings.business_type=='gewerbe' }}>Gewerbetreibender</option></select></div>
+    <div><label>Gewerbesteuer-Hebesatz %</label><input name="gewerbesteuer_hebesatz" type="number" value="{{ settings.gewerbesteuer_hebesatz }}">
+      <div class="hint">Only for Gewerbe. Berlin: 410.</div></div>
+  </div>
+  <div class="grid" style="margin-top:14px">
+    <label class="check"><input type="checkbox" name="kleinunternehmer" {{ 'checked' if settings.kleinunternehmer }}> Kleinunternehmer (§ 19 UStG) this year</label>
+    <label class="check"><input type="checkbox" name="church_tax" {{ 'checked' if settings.church_tax }}> Church member (Kirchensteuer 9 %)</label>
+  </div>
+  <details style="margin-top:14px"><summary>VAT return settings (only if you charge VAT)</summary>
+    <div class="grid" style="margin-top:12px">
+      <div><label>UStVA period</label><select name="ustva_period">
+        <option value="quarterly" {{ 'selected' if settings.ustva_period=='quarterly' }}>Quarterly</option>
+        <option value="monthly" {{ 'selected' if settings.ustva_period=='monthly' }}>Monthly</option></select></div>
+      <label class="check"><input type="checkbox" name="ist_versteuerung" {{ 'checked' if settings.ist_versteuerung }}> Ist-Versteuerung (VAT when paid, § 20 UStG)</label>
+      <label class="check"><input type="checkbox" name="dauerfristverlaengerung" {{ 'checked' if settings.dauerfristverlaengerung }}> Dauerfristverlängerung (+1 month)</label>
+    </div>
+  </details>
+</div>
+<div class="card">
+  <h3>Bank and invoices</h3>
+  <div class="grid">
+    <div><label>Bank</label><input name="bank_name" value="{{ settings.bank_name }}"></div>
+    <div><label>IBAN *</label><input name="iban" value="{{ settings.iban }}"></div>
+    <div><label>BIC</label><input name="bic" value="{{ settings.bic }}"></div>
+    <div><label>Default invoice language</label><select name="invoice_language">
+      <option value="de" {{ 'selected' if settings.invoice_language=='de' }}>Deutsch</option>
+      <option value="en" {{ 'selected' if settings.invoice_language=='en' }}>English</option></select></div>
+    <div><label>Payment terms (days)</label><input name="payment_terms_days" type="number" min="0" value="{{ settings.payment_terms_days }}"></div>
+    <div><label>Digits in invoice number</label><select name="number_digits">
+      {% for n in (2,3,4) %}<option value="{{ n }}" {{ 'selected' if settings.number_digits==n }}>{{ n }} (e.g. {{ year }}-{{ '%0*d'|format(n, 1) }})</option>{% endfor %}</select></div>
+    <div><label>Reminder fee from 1st Mahnung (€)</label><input name="reminder_fee" value="{{ settings.reminder_fee if settings.reminder_fee is not none else '' }}" placeholder="optional, e.g. 5"></div>
+  </div>
+  <label class="check" style="margin-top:14px"><input type="checkbox" name="einvoice" {{ 'checked' if settings.einvoice }}> Make every invoice PDF an e-invoice (ZUGFeRD / Factur-X, EN 16931)</label>
+  <div class="hint">The PDF looks the same, but contains the invoice data as XML. Required for German B2B invoices from 2027/2028.</div>
+</div>
+<div class="card">
+  <h3>Backup</h3>
+  <div><label>Backup folder (e.g. external disk or iCloud Drive)</label><input name="backup_dir" value="{{ settings.backup_dir }}" placeholder="/Volumes/Backup/buero or ~/Library/Mobile Documents/com~apple~CloudDocs/Buero-Backup"></div>
+</div>
+<p><button>Save settings</button></p>
+</form>
+
+<form method="post" action="/settings/backup" class="card">
+  <h3>Backup now</h3>
+  <p class="small muted">Writes one ZIP with the database, all invoices, receipts, reminders and bank files to your backup folder.
+  The app also copies the database to <code>buero-daten/backups</code> at every start{% if backups %} (last: {{ backups[-1].name }}){% endif %}.</p>
+  <button class="secondary">Create backup</button>
+</form>
+
+<form method="post" action="/settings/ai" class="card" id="ai">
+  <h3>AI assistant (local)</h3>
+  <p class="small muted">Talk to your books: "Write the September invoice for GrenzKultur, 12.5 hours". It runs on your Mac with
+  <a href="https://ollama.com" target="_blank">Ollama</a>, nothing is sent to the internet. It only <em>suggests</em> changes;
+  you press Apply on each one. It can never issue, cancel or delete anything.</p>
+  <ol class="small" style="margin:0 0 12px 18px;padding:0">
+    <li>Install Ollama from ollama.com and open it once.</li>
+    <li>In Terminal: <code>ollama pull {{ settings.ai_model or 'qwen3:8b' }}</code> (about 5 GB; with 8 GB RAM use <code>qwen3:4b</code>).</li>
+    <li>Switch it on here.</li>
+  </ol>
+  {% if ai_status %}<p class="small">{% if not ai_status.running %}<span class="badge overdue">Ollama is not running</span>
+  {% elif not ai_status.installed %}<span class="badge overdue">Model not installed</span> run <code>ollama pull {{ settings.ai_model }}</code>{% if ai_status.models %} · installed: {{ ai_status.models|join(', ') }}{% endif %}
+  {% else %}<span class="badge paid">Ready</span>{% endif %}</p>{% endif %}
+  <div class="row">
+    <label class="check" style="flex:0 0 auto"><input type="checkbox" name="ai_enabled" {{ 'checked' if settings.ai_enabled }}> Use the assistant</label>
+    <div><label>Model</label><input name="ai_model" value="{{ settings.ai_model }}" list="ai-models" style="width:180px">
+      <datalist id="ai-models"><option value="qwen3:8b"><option value="qwen3:4b"><option value="qwen3:14b"><option value="llama3.1:8b">{% for m in (ai_status.models if ai_status else []) %}<option value="{{ m }}">{% endfor %}</datalist></div>
+    <div style="flex:1"><label>Ollama address</label><input name="ai_url" value="{{ settings.ai_url }}"></div>
+  </div>
+  <p><button class="secondary">Save</button></p>
+</form>
+
+<div class="card">
+  <h3>VAT status per year</h3>
+  <p class="small muted">Each year keeps its own status, so changing the checkbox above never changes past years.</p>
+  <table><thead><tr><th>Year</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for y, ku, fixed in vat_years %}<tr><td>{{ y }}</td><td>{{ 'Kleinunternehmer' if ku else 'Charges VAT' }}{% if not fixed %} <span class="muted small">(from settings)</span>{% endif %}</td>
+  <td><form method="post" action="/settings/vat-year" class="row"><input type="hidden" name="year" value="{{ y }}">
+    <input type="hidden" name="kleinunternehmer" value="{{ '0' if ku else '1' }}">
+    <button class="small secondary">Switch to {{ 'VAT' if ku else 'Kleinunternehmer' }}</button></form></td></tr>{% endfor %}
+  </tbody></table>
+</div>
+
+<form method="post" action="/settings/sequence" class="card">
+  <h3>Continue invoice numbers from your old system</h3>
+  <p class="small muted">If you already wrote invoices this year elsewhere (e.g. Accountable), set the next number so there is no gap or duplicate.
+  Possible until the first invoice of that year is issued here.</p>
+  <div class="row">
+    <div><label>Year</label><input name="year" type="number" value="{{ year }}"></div>
+    <div><label>Next number</label><input name="next_number" type="number" min="1" value="{{ next_number }}"></div>
+    <div><button class="secondary">Set</button></div>
+  </div>
+</form>
+{% endblock %}

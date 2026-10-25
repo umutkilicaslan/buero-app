@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>Audit log</h1><a class="btn secondary" href="/export/audit.csv">Export CSV</a></div>
+<p class="muted small">Every change is recorded here and can never be edited or deleted (GoBD). Showing the latest 500 entries.</p>
+<div class="card flush"><table><thead><tr><th>Time</th><th>Object</th><th>Action</th><th class="hide-sm">Details</th></tr></thead><tbody>
+{% for r in rows %}<tr><td class="small muted" style="white-space:nowrap">{{ r.ts.strftime('%d.%m.%Y %H:%M:%S') }}</td><td class="small">{{ r.entity }} {{ r.entity_id or '' }}</td><td class="small">{{ r.action.replace('_',' ') }}</td>
+<td class="muted hide-sm" style="font-size:12px;word-break:break-word">{{ r.details[:240] }}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

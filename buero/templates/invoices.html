@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% from "_status.html" import status %}{% block content %}
+<div class="head"><h1>Invoices</h1>
+  <form method="post" action="/invoices/new" class="row">
+    <select name="client_id" required style="min-width:220px"><option value="">Choose client…</option>
+      {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+    <button>+ New invoice</button>
+  </form>
+</div>
+{% if request.query_params.get('new') and not clients %}<div class="note info">First <a href="/clients/new">add a client</a>, then you can write the invoice.</div>{% endif %}
+<div class="row" style="justify-content:space-between;margin-bottom:14px">
+  <div class="pills">{% for k, l in [('', 'All'), ('open', 'Open'), ('overdue', 'Overdue'), ('draft', 'Drafts'), ('paid', 'Paid'), ('cancelled', 'Cancelled')] %}
+  <a class="{{ 'active' if status == k }}" href="/invoices?status={{ k }}{{ '&year=' ~ year if year }}">{{ l }}</a>{% endfor %}</div>
+  {% if years %}<div class="pills"><a class="{{ 'active' if not year }}" href="/invoices?status={{ status }}">All years</a>{% for y in years %}<a class="{{ 'active' if y == year }}" href="/invoices?status={{ status }}&year={{ y }}">{{ y }}</a>{% endfor %}</div>{% endif %}
+</div>
+{% if invoices %}<div class="card flush"><table>
+<thead><tr><th>No.</th><th>Client</th><th class="hide-sm">Date</th><th class="hide-sm">Service</th><th class="r">Total</th><th>Status</th></tr></thead><tbody>
+{% for i in invoices %}<tr><td><a href="/invoices/{{ i.id }}"><strong>{{ i.number or 'Draft' }}</strong></a></td><td>{{ i.client.name }}</td>
+<td class="hide-sm">{{ i.issue_date|d }}</td>
+<td class="muted small hide-sm">{{ i.service_from|d }}{% if i.service_to and i.service_to != i.service_from %} – {{ i.service_to|d }}{% endif %}</td>
+<td class="r">{{ eur(i.gross_total) }}</td><td>{{ status(i, today) }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="card empty"><strong>No invoices here</strong>Choose a client above and click “New invoice”.</div>{% endif %}
+{% endblock %}

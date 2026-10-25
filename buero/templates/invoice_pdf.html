@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="{{ lang }}"><head><meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 20mm 18mm 28mm 22mm;
+    @bottom-center { content: element(footer); } }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #222; line-height: 1.4; }
+  .sender-line { font-size: 7pt; color: #666; border-bottom: 0.5pt solid #999; display: inline-block; margin-bottom: 2mm; }
+  .head { display: flex; justify-content: space-between; margin-top: 10mm; }
+  .address { width: 85mm; min-height: 35mm; }
+  .me { text-align: right; font-size: 8.5pt; }
+  h1 { font-size: 16pt; margin: 12mm 0 4mm; }
+  .meta td { padding: 0 6mm 1mm 0; }
+  table.lines { width: 100%; border-collapse: collapse; margin-top: 6mm; }
+  table.lines th { text-align: left; border-bottom: 1pt solid #222; padding: 1.5mm 1mm; font-weight: 600; }
+  table.lines td { border-bottom: 0.4pt solid #ccc; padding: 1.5mm 1mm; vertical-align: top; }
+  .r { text-align: right; white-space: nowrap; }
+  table.sum { margin-left: auto; margin-top: 3mm; border-collapse: collapse; }
+  table.sum td { padding: 1mm 1mm 1mm 8mm; }
+  table.sum tr.total td { font-weight: 700; border-top: 1pt solid #222; }
+  .note { margin-top: 6mm; font-weight: 600; }
+  .footer { position: running(footer); font-size: 7.5pt; color: #555; border-top: 0.5pt solid #aaa; width: 100%; }
+  .footer td { vertical-align: top; padding: 2mm 4mm 0 0; width: 33%; }
+  .draft { color: #b00; font-weight: 700; font-size: 12pt; }
+</style></head>
+<body>
+<table class="footer"><tr>
+  <td>{{ s.business_name or s.name }}<br>{{ s.street }}<br>{{ s.postal_code }} {{ s.city }}</td>
+  <td>{% if s.tax_number %}{{ L.tax_number }}: {{ s.tax_number }}<br>{% endif %}{% if s.vat_id %}{{ L.vat_id }}: {{ s.vat_id }}<br>{% endif %}{{ s.email }}</td>
+  <td>{{ L.bank }}{% if s.bank_name %}: {{ s.bank_name }}{% endif %}<br>IBAN {{ s.iban }}<br>{% if s.bic %}BIC {{ s.bic }}{% endif %}</td>
+</tr></table>
+
+{% if inv.status == 'draft' %}<p class="draft">{{ L.draft }}</p>{% endif %}
+
+<div class="head">
+  <div class="address">
+    <div class="sender-line">{{ s.name }} · {{ s.street }} · {{ s.postal_code }} {{ s.city }}</div><br>
+    {{ c.name }}<br>
+    {% if c.contact_person %}{{ c.contact_person }}<br>{% endif %}
+    {{ c.street }}<br>{{ c.postal_code }} {{ c.city }}<br>
+    {% if c.country and c.country != 'DE' %}{{ c.country }}<br>{% endif %}
+    {% if c.vat_id %}{{ L.client_vat_id }}: {{ c.vat_id }}{% endif %}
+  </div>
+  <div class="me">
+    <strong>{{ s.business_name or s.name }}</strong><br>
+    {% if s.business_name %}{{ s.name }}<br>{% endif %}
+    {% if s.profession %}{{ s.profession }}<br>{% endif %}
+    {{ s.street }}<br>{{ s.postal_code }} {{ s.city }}<br>
+    {% if s.email %}{{ s.email }}<br>{% endif %}{% if s.phone %}{{ s.phone }}<br>{% endif %}
+    {% if s.tax_number %}{{ L.tax_number }}: {{ s.tax_number }}<br>{% endif %}
+    {% if s.vat_id %}{{ L.vat_id }}: {{ s.vat_id }}{% endif %}
+  </div>
+</div>
+
+<h1>{{ L.storno if inv.kind == 'storno' else L.invoice }}{% if inv.number %} {{ inv.number }}{% endif %}</h1>
+<table class="meta">
+  <tr><td>{{ L.number }}:</td><td>{{ inv.number or '—' }}</td></tr>
+  <tr><td>{{ L.date }}:</td><td>{{ d(inv.issue_date) or '—' }}</td></tr>
+  {% if inv.service_to and inv.service_to != inv.service_from %}
+  <tr><td>{{ L.service }}:</td><td>{{ d(inv.service_from) }} – {{ d(inv.service_to) }}</td></tr>
+  {% else %}
+  <tr><td>{{ L.service_date }}:</td><td>{{ d(inv.service_from) or '—' }}</td></tr>
+  {% endif %}
+</table>
+
+{% if inv.intro_text %}<p>{{ inv.intro_text }}</p>{% endif %}
+
+<table class="lines">
+  <thead><tr><th>{{ L.pos }}</th><th>{{ L.desc }}</th><th class="r">{{ L.qty }}</th><th>{{ L.unit }}</th>
+    <th class="r">{{ L.price }}</th><th class="r">{{ L.amount }}</th></tr></thead>
+  <tbody>
+  {% for ln in inv.lines %}
+    <tr><td>{{ ln.position }}</td><td>{{ ln.description }}</td><td class="r">{{ qty(ln.quantity) }}</td>
+      <td>{{ ln.unit }}</td><td class="r">{{ eur(ln.unit_price) }}</td><td class="r">{{ eur(ln.line_net) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<table class="sum">
+  {% if inv.vat_treatment == 'domestic' %}
+  <tr><td>{{ L.net }}</td><td class="r">{{ eur(inv.net_total) }}</td></tr>
+  <tr><td>{{ L.vat }} {{ rate }} %</td><td class="r">{{ eur(inv.vat_total) }}</td></tr>
+  {% endif %}
+  <tr class="total"><td>{{ L.gross }}</td><td class="r">{{ eur(inv.gross_total) }}</td></tr>
+</table>
+
+{% if vat_note %}<p class="note">{{ vat_note }}</p>{% endif %}
+
+<p>{% if inv.kind == 'storno' %}{{ L.terms_storno }}{% else %}{{ L.terms.format(due=d(inv.due_date) or '…') }}{% endif %}</p>
+<p>{{ L.greeting }}<br><br>{{ s.name }}</p>
+</body></html>

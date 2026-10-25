@@ -1,0 +1,7 @@
+"Buchungsdatum";"Wertstellungsdatum";"Transaktionstyp";"Empfänger";"Betrag";"IBAN";"Verwendungszweck";"end_to_end_id";"Buchungsstatus";"Kategorie";"Persönliche Notiz"
+"2026-03-03";"2026-03-03";"Überweisung";"GrenzKultur gemeinnuetzige GmbH";"696,00";"DE11111111111111111111";"Rnr-2026-04 Rnr-2026-05";"E-1";"Gebucht";;
+"2026-03-05";"2026-03-05";"Lastschrift";"Kontist GmbH";"-0,18";"DE31110101002781508546";"Kontist DE0000001";"DE0000001";"Gebucht";;
+"2026-04-05";"2026-04-05";"Lastschrift";"Kontist GmbH";"-0,18";"DE31110101002781508546";"Kontist DE0000001";"DE0000001";"Gebucht";;
+"2026-03-10";"2026-03-10";"Lastschrift";"Finanzamt Berlin";"-145,00";"DE00000000000000000000";"EST VZ I.Vj.2026 StNr 12/345/67890";"E-2";"Gebucht";;
+"2026-03-12";"2026-03-12";"Überweisung";"Katakids gUG";"425,00";"DE22222222222222222222";"Honorar Maerz";"E-3";"Gebucht";;
+"2026-03-14";"2026-03-14";"Kartenzahlung";"Thomann";"-59,90";"";"Jonglierbaelle";"E-4";"Gebucht";;

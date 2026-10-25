@@ -1,0 +1,18 @@
+{% for m in conv.display %}
+{% if m.role == 'user' %}<div class="msg me">{{ m.text }}</div>
+{% elif m.role == 'assistant' %}<div class="msg ai">{{ m.text }}</div>
+{% elif m.role == 'error' %}<div class="note warn small">{{ m.text }}</div>
+{% elif m.role == 'proposal' %}{% set pr = conv.proposals[m.id] %}
+<div class="proposal {{ pr.status }}">
+  <div class="ptitle"><span>{{ pr.title }}</span>
+    {% if pr.status == 'applied' %}<span class="badge paid">Saved</span>{% elif pr.status == 'dismissed' %}<span class="badge">Dismissed</span>{% else %}<span class="badge info">Suggestion</span>{% endif %}</div>
+  <table>{% for k, v in pr.rows %}<tr><td class="muted">{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}</table>
+  {% for n in pr.notes %}<div class="small muted">• {{ n }}</div>{% endfor %}
+  {% if pr.error %}<div class="note warn small" style="margin-top:8px">{{ pr.error }}</div>{% endif %}
+  {% if pr.status == 'pending' %}<div class="row" style="margin-top:10px">
+    <button class="small" onclick="act('{{ pr.id }}','apply',this)">Apply</button>
+    <button class="small ghost" onclick="act('{{ pr.id }}','dismiss',this)">Dismiss</button></div>
+  {% elif pr.status == 'applied' and pr.url %}<p class="small" style="margin:8px 0 0"><a href="{{ pr.url }}">Open →</a></p>{% endif %}
+</div>
+{% endif %}
+{% endfor %}

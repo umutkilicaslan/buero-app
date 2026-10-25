@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% from "_status.html" import yearpills %}{% block content %}
+<div class="head"><h1>Expenses {{ year }}</h1><a class="btn" href="/expenses/new">+ New expense</a></div>
+<div class="row" style="justify-content:space-between;margin-bottom:14px">
+  {{ yearpills('/expenses', years, year) }}
+  <div class="pills"><a class="{{ 'active' if not missing }}" href="/expenses?year={{ year }}">All</a><a class="{{ 'active' if missing }}" href="/expenses?year={{ year }}&missing=1">Without receipt</a></div>
+</div>
+<div class="split">
+<div>
+{% if rows %}<div class="card flush"><table>
+<thead><tr><th>Date</th><th>Vendor</th><th class="hide-sm">Category</th><th class="r">Amount</th><th></th></tr></thead><tbody>
+{% for e in rows %}<tr style="{{ 'opacity:.5' if e.voided }}"><td>{{ e.date|d }}</td>
+<td><a href="/expenses/{{ e.id }}"><strong>{{ e.vendor }}</strong></a><div class="muted small">{{ e.description[:70] }}</div></td>
+<td class="small hide-sm">{{ category_by_key[e.category].label if e.category in category_by_key else e.category }}{% if e.business_share < 100 %} · {{ qty(e.business_share) }} %{% endif %}</td>
+<td class="r">{{ eur(e.gross_eur) }}{% if e.currency != 'EUR' %}<div class="muted small">{{ qty(e.amount_original) }} {{ e.currency }}</div>{% endif %}</td>
+<td>{% if e.voided %}<span class="badge cancelled">void</span>{% elif not e.receipts and e.category not in ('meals_travel','car_km') %}<span class="badge issued">no receipt</span>{% else %}<span class="badge paid">✓</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="card empty"><strong>No expenses {{ 'without receipt' if missing else 'yet' }}</strong>Add one by hand, from an e-invoice, or import your bank CSV.</div>{% endif %}
+</div>
+<div>
+  <div class="card"><h3>Total {{ year }}</h3><div class="kpi" style="border:none;box-shadow:none;padding:0"><div class="value">{{ eur(total) }}</div><div class="sub">gross, before business share</div></div>
+  {% for k, v in totals %}<div class="deadline small"><a href="/expenses?year={{ year }}&category={{ k }}">{{ category_by_key[k].label if k in category_by_key else k }}</a><span class="num">{{ eur(v) }}</span></div>{% endfor %}
+  {% if category %}<p><a href="/expenses?year={{ year }}">Show all categories</a></p>{% endif %}</div>
+  <form class="card" method="post" action="/expenses/einvoice" enctype="multipart/form-data">
+    <h3>From an e-invoice</h3>
+    <p class="small muted">Upload an XRechnung (.xml) or ZUGFeRD (.pdf). The fields are filled in for you.</p>
+    <input type="file" name="file" accept=".xml,.pdf" required>
+    <p><button class="secondary small">Read e-invoice</button></p>
+  </form>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% from "_status.html" import status %}
+{% block content %}
+<div class="head"><h1>Overview {{ year }}</h1><span class="muted">{{ today|d }}</span></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Received this year</div><div class="value">{{ eur(revenue) }}</div>
+    <div class="sub">cash basis, as in the EÜR</div></div>
+  <div class="kpi"><div class="label">Profit so far</div><div class="value">{{ eur(euer.profit) }}</div>
+    <div class="sub">expenses {{ eur(euer.expense_total) }}</div></div>
+  <div class="kpi"><div class="label">Open invoices</div><div class="value">{{ eur(open_total) }}</div>
+    <div class="sub">{{ open_invoices|length }} open{% if overdue %}, <span style="color:var(--err)">{{ overdue|length }} overdue</span>{% endif %}</div></div>
+  <div class="kpi"><div class="label">Set aside for income tax</div><div class="value">{{ eur(set_aside) }}</div>
+    <div class="sub">≈ {{ est_full.rate }} % of profit · <a href="/reports?tab=tax">details</a></div></div>
+</div>
+
+{% for p in problems %}<div class="note err">Invoice numbers {{ p.year }}: {{ p.kind }} ({{ p.detail }}). Every number must exist exactly once.</div>{% endfor %}
+
+<div class="split">
+<div>
+  {% if open_tx or missing_receipts or drafts %}
+  <div class="card"><h3>To do</h3>
+    {% if open_tx %}<div class="deadline"><span>{{ open_tx }} bank transactions to assign</span><a href="/bank">Assign →</a></div>{% endif %}
+    {% if missing_receipts %}<div class="deadline"><span>{{ missing_receipts }} expenses without a receipt</span><a href="/expenses?missing=1">Add receipts →</a></div>{% endif %}
+    {% for i in drafts[:5] %}<div class="deadline"><span>Draft for {{ i.client.name }} · {{ eur(i.gross_total) }}</span><a href="/invoices/{{ i.id }}">Finish →</a></div>{% endfor %}
+  </div>{% endif %}
+
+  <div class="card flush">
+    <div style="padding:16px 20px 4px"><h3>Open invoices</h3></div>
+    {% if open_invoices %}
+    <table><thead><tr><th>No.</th><th>Client</th><th class="hide-sm">Due</th><th class="r">Open</th><th></th></tr></thead><tbody>
+    {% for i in open_invoices %}<tr><td><a href="/invoices/{{ i.id }}">{{ i.number }}</a></td><td>{{ i.client.name }}</td>
+      <td class="hide-sm">{{ i.due_date|d }}</td><td class="r">{{ eur(i.outstanding) }}</td><td>{{ status(i, today) }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<div class="empty"><strong>All paid</strong>No open invoices.</div>{% endif %}
+  </div>
+
+  <div class="card"><h3>Income per month {{ year }}</h3>
+    <div class="bars">{% for m, v in monthly %}<div title="{{ m }}: {{ eur(v) }}"><span class="b" style="height:{{ (v / monthly_max * 100)|round(1) }}%"></span><span class="l">{{ m }}</span></div>{% endfor %}</div>
+  </div>
+</div>
+
+<div>
+  <div class="card"><h3>Kleinunternehmer (§ 19 UStG)</h3>
+    {% if is_ku %}
+      <div class="small">This year so far: <strong>{{ eur(ku.current_total) }}</strong> of 100.000 €</div>
+      <div class="meter {{ 'err' if ku.current_pct > 90 else ('warn' if ku.current_pct > 70 else '') }}"><div style="width:{{ [ku.current_pct, 100]|min }}%"></div></div>
+      <div class="small">For next year it must stay ≤ 25.000 €: <strong>{{ ku.next_year_pct }} %</strong> used</div>
+      <div class="meter {{ 'err' if ku.next_year_pct > 100 else ('warn' if ku.next_year_pct > 80 else '') }}"><div style="width:{{ [ku.next_year_pct, 100]|min }}%"></div></div>
+      {% if ku.next_year_pct > 100 %}<div class="note warn small">Above 25.000 € this year: from 1 January you are no longer Kleinunternehmer (unless the turnover is tax-exempt, e.g. § 4 Nr. 25). <a href="/reports?tab=ku">Details</a></div>{% endif %}
+      <div class="hint">Counts received money. Tax-exempt (§ 4 Nr. 8–29) and foreign turnover are left out.</div>
+    {% else %}
+      <div class="small">You charge VAT this year. <a href="/reports?tab=ustva">UStVA figures →</a></div>
+      {% if ku.current_total <= 25000 %}<div class="hint">This year's turnover so far ({{ eur(ku.current_total) }}) is under 25.000 €. You could become Kleinunternehmer again next year.</div>{% endif %}
+    {% endif %}
+  </div>
+
+  <div class="card"><h3>Coming up</h3>
+    {% for d in deadlines[:6] %}<div class="deadline"><div><strong class="small">{{ d.title }}</strong><div class="hint" style="margin:0">{{ d.detail }}</div></div>
+      <div class="r small"><strong>{{ d.due|d }}</strong><div class="hint" style="margin:0">{{ d.days_left(today) }} days</div></div></div>
+    {% else %}<div class="muted small">No deadlines in the next weeks.</div>{% endfor %}
+  </div>
+
+  <div class="card"><h3>Income tax {{ year }} (estimate)</h3>
+    <table class="small">
+      <tr><td>Projected profit (full year)</td><td class="r">{{ eur(projected_profit) }}</td></tr>
+      <tr><td>Estimated tax for the year</td><td class="r">{{ eur(est_full.total) }}</td></tr>
+      <tr><td>Share up to today</td><td class="r">{{ eur(est_ytd) }}</td></tr>
+      <tr><td>Already paid (Vorauszahlungen)</td><td class="r">− {{ eur(tax_paid) }}</td></tr>
+      <tr><td><strong>Put aside now</strong></td><td class="r"><strong>{{ eur(set_aside) }}</strong></td></tr>
+    </table>
+    <div class="hint">Rough estimate, single person. Enter health insurance etc. under <a href="/reports?tab=tax">Reports → Tax</a>.</div>
+  </div>
+</div>
+</div>
+{% endblock %}

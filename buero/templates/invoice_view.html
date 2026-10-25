@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% from "_status.html" import status %}{% block content %}
+<div class="head"><h1>{{ 'Cancellation invoice' if inv.kind == 'storno' else 'Invoice' }} {{ inv.number }} {{ status(inv, today) }}</h1>
+  <div class="row"><a class="btn" href="/invoices/{{ inv.id }}/pdf" target="_blank">Open PDF</a>
+  {% if inv.kind == 'invoice' %}<form method="post" action="/invoices/{{ inv.id }}/duplicate"><button class="secondary">Copy as new draft</button></form>{% endif %}</div>
+</div>
+<div class="split">
+<div>
+<div class="card">
+  <div class="grid">
+    <div><label>Client</label><a href="/clients/{{ inv.client_id }}">{{ inv.client.name }}</a></div>
+    <div><label>Invoice date</label>{{ inv.issue_date|d }}</div>
+    <div><label>Service</label>{{ inv.service_from|d }}{% if inv.service_to and inv.service_to != inv.service_from %} – {{ inv.service_to|d }}{% endif %}</div>
+    <div><label>Due</label>{{ inv.due_date|d }}</div>
+  </div>
+  <table style="margin-top:16px"><thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Amount</th></tr></thead><tbody>
+  {% for ln in inv.lines %}<tr><td>{{ ln.description }}</td><td class="r">{{ qty(ln.quantity) }} {{ ln.unit }}</td><td class="r">{{ eur(ln.unit_price) }}</td><td class="r">{{ eur(ln.line_net) }}</td></tr>{% endfor %}
+  </tbody></table>
+  <table class="totals" style="margin-top:8px">
+    {% if inv.vat_total %}<tr><td>Net</td><td class="r">{{ eur(inv.net_total) }}</td></tr><tr><td>VAT {{ qty(inv.vat_rate) }} %</td><td class="r">{{ eur(inv.vat_total) }}</td></tr>{% endif %}
+    <tr class="grand"><td>Total</td><td class="r">{{ eur(inv.gross_total) }}</td></tr>
+  </table>
+  <p class="small"><span class="badge">{{ vat_labels[inv.vat_treatment] }}</span>{% if inv.vat_note %} <em>{{ inv.vat_note }}</em>{% endif %}</p>
+  {% if inv.cancels %}<p>Cancels invoice <a href="/invoices/{{ inv.cancels.id }}">{{ inv.cancels.number }}</a>.</p>{% endif %}
+  {% if storno %}<div class="note info">Cancelled by <a href="/invoices/{{ storno.id }}">{{ storno.number }}</a>.{% if inv.payments %} This invoice had been paid: book the refund in <a href="/bank">Bank</a> when it leaves your account.{% endif %}</div>{% endif %}
+</div>
+
+{% if inv.payments %}<div class="card"><h3>Payments</h3><table><tbody>
+{% for p in inv.payments %}<tr><td>{{ p.date|d }}</td><td class="r">{{ eur(p.amount) }}</td><td class="muted small">{{ 'from bank import' if p.transaction_id else 'entered manually' }}</td></tr>{% endfor %}
+</tbody></table>
+{% if inv.status in ('paid', 'issued') %}<form method="post" action="/invoices/{{ inv.id }}/unpaid" onsubmit="return confirm('Remove all payments of this invoice?')"><button class="ghost small">Remove payments</button></form>{% endif %}
+</div>{% endif %}
+
+{% if inv.status == 'issued' and inv.kind == 'invoice' %}
+<form method="post" action="/invoices/{{ inv.id }}/paid" class="card">
+  <h3>Record payment</h3>
+  <p class="hint" style="margin-top:0">Easier: import your bank CSV under <a href="/bank">Bank</a>, payments are matched automatically.</p>
+  <div class="row"><div><label>Date</label><input type="date" name="paid_date" value="{{ today }}"></div>
+  <div><label>Amount (empty = {{ eur(inv.outstanding) }})</label><input name="paid_amount" inputmode="decimal"></div>
+  <div><button>Save payment</button></div></div>
+</form>{% endif %}
+
+{% if inv.kind == 'invoice' and inv.status in ('issued', 'paid') %}
+<details class="card"><summary>Correct or cancel this invoice (Storno)</summary>
+<form method="post" action="/invoices/{{ inv.id }}/storno" onsubmit="return confirm('Issue a cancellation invoice? This cannot be undone.')" style="margin-top:12px">
+  <p class="small muted">Issued invoices cannot be edited. A cancellation invoice with its own number reverses it; then you write a corrected invoice.</p>
+  <div><label>Reason (printed on the cancellation invoice)</label><input name="reason" placeholder="e.g. falsche Stundenzahl"></div>
+  <p><label class="check"><input type="checkbox" name="copy" checked> Open a new draft with the same items</label></p>
+  <button class="danger">Issue Storno</button>
+</form></details>{% endif %}
+</div>
+
+<div>
+  {% if inv.is_open %}<div class="card"><h3>Reminders</h3>
+    {% for r in inv.reminders %}<div class="deadline"><span>{{ r.date|d }} · level {{ r.level }}</span><a href="/reminders/{{ r.id }}/pdf" target="_blank">PDF</a></div>{% endfor %}
+    {% if can_remind %}<form method="post" action="/invoices/{{ inv.id }}/remind" style="margin-top:10px">
+      <div class="row"><div><label>New deadline in days</label><input name="days" type="number" value="10" style="width:90px"></div>
+      {% if inv.reminders %}<div><label>Fee €</label><input name="fee" value="{{ qty(settings.reminder_fee) if settings.reminder_fee else '' }}" style="width:90px"></div>{% endif %}</div>
+      <p><button class="secondary">Create {{ next_level }}</button></p></form>
+    {% elif not inv.is_overdue(today) %}<p class="small muted">Not overdue yet (due {{ inv.due_date|d }}).</p>{% endif %}
+  </div>{% endif %}
+
+  <div class="card"><h3>Files</h3>
+    {% if inv.pdf_path %}<p class="small"><a href="/invoices/{{ inv.id }}/pdf" target="_blank">{{ inv.pdf_path.split('/')[-1] }}</a><br>
+    <span class="muted">SHA-256 {{ inv.pdf_sha256[:20] }}…</span></p>
+    {% else %}<p class="small muted">No archived PDF.</p>{% endif %}
+    {% if has_xml %}<p class="small"><span class="badge paid">E-invoice</span> ZUGFeRD / Factur-X data embedded</p>{% endif %}
+    {% if inv.client.leitweg_id %}<p><a class="btn secondary small" href="/invoices/{{ inv.id }}/xrechnung">Download XRechnung (XML)</a></p>{% endif %}
+  </div>
+
+  <div class="card"><h3>History</h3>
+    {% for r in log %}<div class="deadline small"><span>{{ r.action.replace('_', ' ') }}</span><span class="muted">{{ r.ts.strftime('%d.%m.%Y %H:%M') }}</span></div>{% endfor %}
+  </div>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>Clients</h1><a class="btn" href="/clients/new">+ New client</a></div>
+{% if rows %}<div class="card flush"><table>
+<thead><tr><th>Name</th><th class="hide-sm">Country</th><th class="hide-sm">VAT on invoices</th><th class="r">Received</th><th class="r">Open</th><th></th></tr></thead><tbody>
+{% for c, total, open_ in rows %}<tr><td><a href="/clients/{{ c.id }}"><strong>{{ c.name }}</strong></a><div class="muted small">{{ c.city }}</div></td>
+<td class="hide-sm">{{ c.country }}</td>
+<td class="muted small hide-sm">{% if c.exemption %}{{ vat_labels['exempt_' + c.exemption] }}{% elif c.country != 'DE' and c.is_business %}{{ 'Reverse Charge' if c.vat_id else 'Abroad' }}{% else %}Standard{% endif %}</td>
+<td class="r">{{ eur(total) }}</td><td class="r">{{ eur(open_) if open_ else '–' }}</td>
+<td class="r"><form method="post" action="/invoices/new"><input type="hidden" name="client_id" value="{{ c.id }}"><button class="small secondary">New invoice</button></form></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="card empty"><strong>No clients yet</strong>Add your first client to write an invoice.<br><br><a class="btn" href="/clients/new">+ New client</a></div>{% endif %}
+{% endblock %}

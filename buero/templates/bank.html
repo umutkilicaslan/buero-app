@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>Bank</h1>
+  <form method="post" action="/bank/import" enctype="multipart/form-data" class="row">
+    <input type="file" name="file" accept=".csv,.txt" required style="max-width:280px">
+    <button>Import CSV</button>
+  </form>
+</div>
+{% if not rows and not counts %}
+<div class="card empty"><strong>Import your first bank statement</strong>
+  Export the transactions of your business account as CSV (Kontist, N26, Sparkasse, DKB, ING, … all work) and upload it above.
+  Importing the same file again is safe: known transactions are skipped.</div>
+{% else %}
+<div class="row" style="justify-content:space-between;margin-bottom:14px">
+  <div class="pills">
+    {% for k in ['open', 'all', 'invoice', 'income', 'expense', 'tax', 'private', 'transfer', 'ignored'] %}
+    <a class="{{ 'active' if status == k }}" href="/bank?status={{ k }}">{{ 'All' if k == 'all' else tx_status[k] }}{% if k != 'all' and counts.get(k) %} · {{ counts.get(k) }}{% endif %}</a>{% endfor %}
+  </div>
+  <form class="row" method="get"><input type="hidden" name="status" value="{{ status }}"><input name="q" value="{{ q }}" placeholder="Search…" style="width:180px"></form>
+</div>
+{% if status == 'open' and rows %}<div class="note info small">Go through each line once: assign incoming money to invoices, turn business costs into expenses, mark the rest as private. Nothing here is final, every step can be undone.</div>
+<details class="card" style="padding:10px 14px"><summary class="small"><strong>Already booked these in Accountable?</strong> Skip all open transactions before a date at once.</summary>
+  <form method="post" action="/bank/ignore-before" class="row" style="margin-top:10px"
+        onsubmit="return confirm('Mark all OPEN transactions before this date as ignored? Each one can still be undone later.')">
+    <div><label>Before</label><input type="date" name="before" value="{{ ignore_default }}" required></div>
+    <div style="flex:1"><label>Reason (kept in the audit log)</label><input name="note" value="Already booked in Accountable" required></div>
+    <button class="secondary">Mark as ignored</button>
+  </form></details>{% endif %}
+
+<div class="card flush"><table><tbody>
+{% for t in rows %}
+<tr><td style="width:96px" class="small">{{ t.booking_date|d }}</td>
+<td>
+  <strong>{{ t.counterparty or '—' }}</strong> {% if t.status != 'open' %}<span class="badge {{ 'paid' if t.status in ('invoice','income','expense') else '' }}">{{ tx_status[t.status] }}{% if t.status == 'tax' %} · {{ {'est':'income tax','ust':'VAT','other':'other'}[t.tax_kind] }} {{ t.tax_year }}{% endif %}</span>{% endif %}
+  <div class="muted small" style="word-break:break-word">{{ t.purpose }}</div>
+  {% if t.status == 'open' %}
+  <div class="tx-actions">
+    {% if t.amount > 0 %}
+      {% for m in suggestions.get(t.id, []) %}
+      <form method="post" action="/bank/{{ t.id }}/match"><input type="hidden" name="invoice_ids" value="{{ m.invoices|map(attribute='id')|join(',') }}">
+        <button class="small {{ '' if m.score >= 80 else 'secondary' }}" title="{{ m.reason }}">✓ {{ m.invoices|map(attribute='number')|join(' + ') }}</button></form>
+      {% endfor %}
+      {% if open_invoices %}<details style="display:inline-block"><summary class="small">Other invoice…</summary>
+        <form method="post" action="/bank/{{ t.id }}/match" style="margin-top:6px"><select name="invoice_id" multiple size="4" style="min-width:260px">
+        {% for i in open_invoices %}<option value="{{ i.id }}">{{ i.number }} · {{ i.client.name[:24] }} · {{ eur(i.outstanding) }}</option>{% endfor %}</select>
+        <button class="small">Assign</button></form></details>{% endif %}
+      <a class="btn small secondary" href="/income/new?tx={{ t.id }}">Other income</a>
+    {% else %}
+      <a class="btn small" href="/expenses/new?tx={{ t.id }}">Expense</a>
+    {% endif %}
+    <details style="display:inline-block"><summary class="small">Tax office</summary>
+      <form method="post" action="/bank/{{ t.id }}/status" class="row" style="margin-top:6px"><input type="hidden" name="status" value="tax">
+        <select name="tax_kind" style="width:auto"><option value="est" {{ 'selected' if t.tax_kind != 'ust' }}>Income tax (ESt)</option><option value="ust" {{ 'selected' if t.tax_kind == 'ust' }}>VAT (USt)</option><option value="other">Other</option></select>
+        <input name="tax_year" type="number" value="{{ t.tax_year or t.booking_date.year }}" style="width:90px" title="For which year?">
+        <button class="small">Save</button></form></details>
+    {% for st, label in [('private', 'Private'), ('transfer', 'Own transfer'), ('ignored', 'Ignore')] %}
+    <form method="post" action="/bank/{{ t.id }}/status"><input type="hidden" name="status" value="{{ st }}"><button class="small ghost">{{ label }}</button></form>{% endfor %}
+    {% if t.tax_kind %}<span class="badge info">looks like tax office ({{ {'est':'income tax','ust':'VAT'}[t.tax_kind] }} {{ t.tax_year }})</span>{% endif %}
+  </div>
+  {% else %}
+  <div class="tx-actions">
+    {% for p in t.payments %}<a class="small" href="/invoices/{{ p.invoice_id }}">→ {{ p.invoice.number }}</a>{% endfor %}
+    {% for e in t.expenses %}{% if not e.voided %}<a class="small" href="/expenses/{{ e.id }}">→ expense</a>{% endif %}{% endfor %}
+    <form method="post" action="/bank/{{ t.id }}/undo" onsubmit="return confirm('Undo this assignment?')"><button class="small ghost">Undo</button></form>
+  </div>
+  {% endif %}
+</td>
+<td class="r txamt {{ 'pos' if t.amount > 0 else 'neg' }}">{{ eur(t.amount) }}</td></tr>
+{% else %}<tr><td><div class="empty"><strong>{{ 'All done' if status == 'open' else 'Nothing here' }}</strong>{{ 'Every transaction is assigned.' if status == 'open' }}</div></td></tr>{% endfor %}
+</tbody></table></div>
+{% if imports %}<p class="small muted">Last imports: {% for i in imports %}{{ i.imported_at.strftime('%d.%m.%Y') }} {{ i.filename }} ({{ i.rows_new }} new){{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+{% endif %}
+{% endblock %}

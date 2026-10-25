@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>Map the columns</h1></div>
+<div class="note warn">{{ error }}</div>
+<form method="post" action="/bank/import-mapped" class="card">
+  <input type="hidden" name="token" value="{{ token }}">
+  <p class="small muted">Tell the app which column holds what. Date and amount are required.</p>
+  <div class="grid">
+  {% for f, label in [('date','Booking date *'), ('amount','Amount *'), ('counterparty','Payer / payee'), ('purpose','Payment reference'), ('iban','IBAN'), ('reference','Transaction ID'), ('currency','Currency')] %}
+    <div><label>{{ label }}</label><select name="map_{{ f }}"><option value="">–</option>
+      {% for h in header %}<option value="{{ loop.index0 }}">{{ h }}</option>{% endfor %}</select></div>
+  {% endfor %}
+  </div>
+  <p><button>Import</button></p>
+</form>
+{% endblock %}

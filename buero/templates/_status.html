@@ -1,0 +1,12 @@
+{% macro status(inv, today) -%}
+{% if inv.kind == 'storno' %}<span class="badge storno">Storno</span>
+{% elif inv.status == 'draft' %}<span class="badge">Draft</span>
+{% elif inv.status == 'cancelled' %}<span class="badge cancelled">Cancelled</span>
+{% elif inv.status == 'paid' %}<span class="badge paid">Paid</span>
+{% elif inv.is_overdue(today) %}<span class="badge overdue">Overdue {{ (today - inv.due_date).days }} d</span>
+{% elif inv.paid_amount %}<span class="badge issued">Part-paid</span>
+{% else %}<span class="badge issued">Open</span>{% endif %}
+{%- endmacro %}
+{% macro yearpills(base, years, year, extra='') -%}
+<div class="pills">{% for y in years %}<a class="{{ 'active' if y == year }}" href="{{ base }}?year={{ y }}{{ extra }}">{{ y }}</a>{% endfor %}</div>
+{%- endmacro %}

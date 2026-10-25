@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>{{ 'Income' if o.id else 'Book income' }}{% if o.voided %} <span class="badge cancelled">void</span>{% endif %}</h1></div>
+{% if tx %}<div class="note info">From bank: <strong>{{ tx.booking_date|d }}</strong> · {{ tx.counterparty }} · {{ eur(tx.amount) }}<br><span class="small">{{ tx.purpose }}</span></div>{% endif %}
+<form method="post" action="/income/save" class="card">
+  <input type="hidden" name="id" value="{{ o.id or '' }}"><input type="hidden" name="transaction_id" value="{{ o.transaction_id or '' }}">
+  {% if tx %}<input type="hidden" name="next" value="bank">{% endif %}
+  <div class="grid">
+    <div><label>Date received *</label><input type="date" name="date" value="{{ o.date or '' }}" required></div>
+    <div><label>Amount received (gross) *</label><input name="gross_eur" inputmode="decimal" value="{{ qty(o.gross_eur) if o.gross_eur is not none else '' }}" required></div>
+    <div><label>Client</label><select name="client_id"><option value="">–</option>{% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if c.id == o.client_id }}>{{ c.name }}</option>{% endfor %}</select></div>
+    <div><label>VAT treatment *</label><select name="vat_treatment">{% for k, l in vat_labels.items() %}<option value="{{ k }}" {{ 'selected' if k == o.vat_treatment }}>{{ l }}</option>{% endfor %}</select>
+      <div class="hint">As on the original invoice.</div></div>
+  </div>
+  <div style="margin-top:12px"><label>Description</label><input name="description" value="{{ o.description or '' }}" placeholder="e.g. Rechnung 2026-15 (Accountable)"></div>
+  {% if not o.voided %}<p><button>Save</button></p>{% endif %}
+</form>
+{% if o.id and not o.voided %}<form method="post" action="/income/{{ o.id }}/void" onsubmit="return confirm('Void this income?')"><button class="danger small">Void</button></form>{% endif %}
+{% endblock %}

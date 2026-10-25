@@ -1,0 +1,124 @@
+{% extends "base.html" %}{% block content %}
+<div class="head"><h1>Reports &amp; taxes</h1>
+  <div class="pills">{% for y in years %}<a class="{{ 'active' if y == year }}" href="/reports?year={{ y }}&tab={{ tab }}">{{ y }}</a>{% endfor %}</div></div>
+<div class="tabs">
+  {% for k, l in [('euer','EÜR'), ('tax','Income tax'), ('ku','Kleinunternehmer'), ('ustva','UStVA'), ('zm','ZM'), ('assets','Assets'), ('export','Export')] %}
+  <a class="{{ 'active' if tab == k }}" href="/reports?year={{ year }}&tab={{ k }}">{{ l }}</a>{% endfor %}
+</div>
+
+{% if tab == 'euer' %}
+<div class="note info small">Anlage EÜR {{ year }} — {{ 'Kleinunternehmer year' if is_ku else 'regular VAT year' }}. Copy each amount into the line with the same <span class="kz">Kz</span> in Mein ELSTER (or Accountable).
+The form changes a little every year: always compare the label, not only the number.</div>
+<div class="card flush"><table>
+<thead><tr><th>Kz</th><th>Betriebseinnahmen</th><th class="r">EUR</th></tr></thead><tbody>
+{% for line, v in euer.rows('income') %}<tr><td><span class="kz">{{ line.kz }}</span></td><td>{{ line.label }}</td><td class="r">{{ eur(v) }}</td></tr>{% endfor %}
+{% for line, v in euer.rows('info') %}{% if line.kz == '119' %}<tr><td><span class="kz">{{ line.kz }}</span></td><td class="muted">{{ line.label }}</td><td class="r muted">{{ eur(v) }}</td></tr>{% endif %}{% endfor %}
+<tr><th></th><th>Summe Betriebseinnahmen</th><th class="r">{{ eur(euer.income_total) }}</th></tr>
+</tbody></table></div>
+<div class="card flush"><table>
+<thead><tr><th>Kz</th><th>Betriebsausgaben</th><th class="r">EUR</th></tr></thead><tbody>
+{% for line, v in euer.rows('expense') %}<tr><td><span class="kz">{{ line.kz }}</span></td><td>{{ line.label }}{% if line.kz == '163' %} <span class="muted small">({{ euer.homeoffice_days }} days × 6 €)</span>{% endif %}</td><td class="r">{{ eur(v) }}</td></tr>
+{% else %}<tr><td colspan="3" class="muted">No expenses booked for {{ year }}.</td></tr>{% endfor %}
+{% if euer.nondeductible %}<tr><td><span class="kz">165</span></td><td class="muted">Bewirtung, nicht abziehbarer Teil (enter in the left column)</td><td class="r muted">{{ eur(euer.nondeductible) }}</td></tr>{% endif %}
+<tr><th></th><th>Summe Betriebsausgaben</th><th class="r">{{ eur(euer.expense_total) }}</th></tr>
+</tbody></table></div>
+<div class="kpis"><div class="kpi"><div class="label">Gewinn {{ year }}</div><div class="value">{{ eur(euer.profit) }}</div></div></div>
+<p class="row"><a class="btn secondary" href="/reports/euer.pdf?year={{ year }}" target="_blank">EÜR as PDF</a><a class="btn secondary" href="/export/euer.csv?year={{ year }}">CSV</a></p>
+<p class="small muted">Home office days and health insurance are entered under <a href="/reports?year={{ year }}&tab=tax">Income tax</a>.</p>
+
+{% elif tab == 'tax' %}
+<div class="split">
+<div>
+<div class="card"><h3>Estimate for {{ year }}</h3>
+<table>
+  <tr><td>Profit (EÜR)</td><td class="r">{{ eur(est.profit) }}</td></tr>
+  <tr><td>− Sonderausgaben / Vorsorge</td><td class="r">{{ eur(est.sonderausgaben) }}</td></tr>
+  <tr><td>= Taxable income (approx.)</td><td class="r">{{ eur(est.zve) }}</td></tr>
+  <tr><td>Einkommensteuer</td><td class="r">{{ eur(est.income_tax) }}</td></tr>
+  {% if est.soli %}<tr><td>Solidaritätszuschlag</td><td class="r">{{ eur(est.soli) }}</td></tr>{% endif %}
+  {% if est.church %}<tr><td>Kirchensteuer (9 %)</td><td class="r">{{ eur(est.church) }}</td></tr>{% endif %}
+  {% if est.gewerbesteuer %}<tr><td>Gewerbesteuer (credit in ESt: {{ eur(est.gewst_credit) }})</td><td class="r">{{ eur(est.gewerbesteuer) }}</td></tr>{% endif %}
+  <tr class="grand"><td><strong>Total</strong></td><td class="r"><strong>{{ eur(est.total) }}</strong></td></tr>
+  <tr><td>Already paid for {{ year }} (Vorauszahlungen)</td><td class="r">− {{ eur(paid) }}</td></tr>
+  <tr><td><strong>{{ 'Expected back' if est.total < paid else 'Still to pay' }}</strong></td><td class="r"><strong>{{ eur((est.total - paid)|abs) }}</strong></td></tr>
+</table>
+{% if est.provisional_tariff %}<div class="note warn small">The tariff for {{ year }} is not stored yet; the newest known tariff was used.</div>{% endif %}
+<p class="hint">Single person (Grundtarif), § 32a EStG {{ year }}. Simplified: no other income, no Kinderfreibetrag, Vorsorge as you enter it. Use it to set money aside, not as a Steuerbescheid.</p>
+</div>
+</div>
+<form method="post" action="/reports/tax-year" class="card"><h3>Your inputs for {{ year }}</h3>
+  <input type="hidden" name="year" value="{{ year }}">
+  <div><label>Home office days</label><input name="homeoffice_days" type="number" min="0" max="366" value="{{ ty.homeoffice_days }}">
+    <div class="hint">Days you mainly worked at home, max. 210 × 6 € = 1.260 €. Goes into the EÜR (Kz 163).</div></div>
+  <div style="margin-top:10px"><label>Health &amp; care insurance, pension (Sonderausgaben)</label><input name="sonderausgaben" inputmode="decimal" value="{{ qty(ty.sonderausgaben) }}">
+    <div class="hint">From your insurer's yearly certificate. Not a business expense.</div></div>
+  <div style="margin-top:10px"><label>Prepayments not in the bank import</label><input name="prepayments_other" inputmode="decimal" value="{{ qty(ty.prepayments_other) }}">
+    <div class="hint">Payments to the Finanzamt assigned to {{ year }} in Bank are counted automatically.</div></div>
+  <p><button>Save</button></p>
+</form>
+</div>
+
+{% elif tab == 'ku' %}
+<div class="kpis">
+  <div class="kpi"><div class="label">Turnover {{ year - 1 }} (limit 25.000 €)</div><div class="value">{{ eur(ku.prior_total) }}</div>
+    <div class="sub">{{ '✓ under the limit' if ku.prior_ok else '✗ over the limit' }}</div></div>
+  <div class="kpi"><div class="label">Turnover {{ year }} so far (limit 100.000 €)</div><div class="value">{{ eur(ku.current_total) }}</div>
+    <div class="meter {{ 'err' if not ku.current_ok }}"><div style="width:{{ [ku.current_pct, 100]|min }}%"></div></div></div>
+</div>
+<div class="card">
+  {% if ku.prior_ok and ku.current_ok %}<div class="note ok">By these numbers you can be Kleinunternehmer in {{ year }}.</div>
+  {% elif not ku.prior_ok %}<div class="note warn">{{ year - 1 }} turnover was over 25.000 €. In {{ year }} you are not Kleinunternehmer — unless part of it was tax-exempt and is not yet marked as such (e.g. § 4 Nr. 25 for a youth welfare provider).</div>
+  {% else %}<div class="note err">Over 100.000 € this year: from the invoice that crossed the limit, VAT applies.</div>{% endif %}
+  <p class="small">“Turnover” here = money received for taxable work in Germany (§ 19 Abs. 2 UStG). Not counted: tax-exempt work (§ 4 Nr. 8–29, e.g. Nr. 21, Nr. 25) and work whose place of supply is abroad.</p>
+  <p class="small">Share of {{ year - 1 }} income from clients marked § 4 Nr. 25: <strong>{{ ku.youth_share_prior }} %</strong>
+  <span class="muted">(over 50 % is one condition for your own § 4 Nr. 25 exemption as a freelancer, § 4 Nr. 25 Satz 2 b bb UStG)</span></p>
+</div>
+<div class="card flush"><table><thead><tr><th>Year</th><th class="r">Turnover (§ 19)</th><th>Status in the app</th></tr></thead><tbody>
+{% for y, total, ku_ in history %}<tr><td>{{ y }}</td><td class="r">{{ eur(total) }}</td><td>{{ 'Kleinunternehmer' if ku_ else 'VAT' }}</td></tr>{% endfor %}</tbody></table></div>
+
+{% elif tab == 'ustva' %}
+{% if is_ku %}<div class="note info">{{ year }} is a Kleinunternehmer year: you normally file no UStVA.
+Exception: if you bought services from abroad without VAT (§ 13b, e.g. Google/Meta ads, Adobe from Ireland), you owe that VAT and must file a UStVA for that period. Those cases show below.</div>{% endif %}
+<div class="note info small">{{ 'Ist-Versteuerung: sales count when paid.' if settings.ist_versteuerung else 'Soll-Versteuerung: sales count by invoice date.' }}
+Bemessungsgrundlagen in whole euros, tax with cents, as in Mein ELSTER.</div>
+<div class="card flush" style="overflow-x:auto"><table>
+<thead><tr><th>Period</th><th class="r">Kz 81<div class="small">19 % sales</div></th><th class="r">Kz 21<div class="small">EU RC</div></th><th class="r">Kz 45<div class="small">not taxable</div></th>
+<th class="r">Kz 48<div class="small">exempt</div></th><th class="r">Kz 46/47<div class="small">§13b EU</div></th><th class="r">Kz 84/85<div class="small">§13b other</div></th>
+<th class="r">Kz 66<div class="small">Vorsteuer</div></th><th class="r">Kz 67</th><th class="r">Kz 83<div class="small">to pay</div></th></tr></thead><tbody>
+{% for label, u in rows %}<tr style="{{ 'opacity:.45' if u.empty }}"><td><strong>{{ label }}</strong></td>
+<td class="r">{{ u.kz.get('81', '')|int if u.kz.get('81') else '' }}</td><td class="r">{{ u.kz.get('21')|int if u.kz.get('21') else '' }}</td>
+<td class="r">{{ u.kz.get('45')|int if u.kz.get('45') else '' }}</td><td class="r">{{ u.kz.get('48')|int if u.kz.get('48') else '' }}</td>
+<td class="r">{% if u.kz.get('46') %}{{ u.kz['46']|int }} / {{ qty(u.kz['47']) }}{% endif %}</td>
+<td class="r">{% if u.kz.get('84') %}{{ u.kz['84']|int }} / {{ qty(u.kz['85']) }}{% endif %}</td>
+<td class="r">{{ qty(u.kz['66']) if u.kz.get('66') else '' }}</td><td class="r">{{ qty(u.kz['67']) if u.kz.get('67') else '' }}</td>
+<td class="r"><strong>{{ eur(u.kz['83']) if not u.empty else '' }}</strong></td></tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted">Kz 81 tax (19 %) is calculated by ELSTER from the base; the app shows the result inside Kz 83. A negative Kz 83 is a refund.</p>
+
+{% elif tab == 'zm' %}
+<div class="note info small">Zusammenfassende Meldung: required for each quarter in which you invoiced EU business clients with reverse charge. File it in Mein ELSTER (form “ZM”) by the 25th after the quarter. Type of supply: “S” (sonstige Leistung).</div>
+{% for label, rows_ in rows %}<div class="card"><h3>{{ label }}</h3>
+{% if rows_ %}<table><thead><tr><th>Country</th><th>VAT ID</th><th>Client</th><th class="r">Amount (EUR)</th><th>Type</th></tr></thead><tbody>
+{% for r in rows_ %}<tr><td>{{ r.country }}</td><td>{{ r.vat_id }}</td><td>{{ r.name }}<div class="muted small">{{ r.invoices|join(', ') }}</div></td><td class="r">{{ r.amount_eur|int }}</td><td>S</td></tr>{% endfor %}
+</tbody></table>{% else %}<p class="muted small" style="margin:0">Nothing to report.</p>{% endif %}</div>{% endfor %}
+
+{% elif tab == 'assets' %}
+<div class="note info small">Anlagenverzeichnis: items over 800 € net are depreciated over their useful life; up to 800 € net they are GWG (fully deductible in the year bought).</div>
+<div class="card flush"><table><thead><tr><th>Bought</th><th>Item</th><th class="r">Cost</th><th class="r">Before {{ year }}</th><th class="r">AfA {{ year }}</th><th class="r">Book value end {{ year }}</th></tr></thead><tbody>
+{% for e, cost, before, this, rest, gwg in assets %}<tr><td>{{ e.date|d }}</td><td><a href="/expenses/{{ e.id }}">{{ e.vendor }}</a> <span class="muted small">{{ e.description[:40] }}</span>{% if gwg %} <span class="badge">GWG</span>{% else %} <span class="badge">{{ e.useful_life_years }} y</span>{% endif %}</td>
+<td class="r">{{ eur(cost) }}</td><td class="r">{{ eur(before) }}</td><td class="r">{{ eur(this) }}</td><td class="r">{{ eur(rest) }}</td></tr>
+{% else %}<tr><td colspan="6"><div class="empty">No assets.</div></td></tr>{% endfor %}</tbody></table></div>
+
+{% elif tab == 'export' %}
+<div class="grid">
+<div class="card"><h3>Everything for {{ year }} in one ZIP</h3>
+  <p class="small">For your Steuerberater or a tax audit: all lists as CSV, every invoice and reminder PDF, all receipts, the audit log and the Verfahrensdokumentation.</p>
+  <a class="btn" href="/export/archive.zip?year={{ year }}">Download ZIP {{ year }}</a></div>
+<div class="card"><h3>Single lists (CSV, opens in Excel/Numbers)</h3>
+  {% for k, l in [('invoices','Invoices'), ('payments','Payments received'), ('income','Other income'), ('expenses','Expenses'), ('transactions','Bank transactions'), ('euer','EÜR')] %}
+  <div class="deadline small"><span>{{ l }} {{ year }}</span><a href="/export/{{ k }}.csv?year={{ year }}">CSV</a></div>{% endfor %}
+  <div class="deadline small"><span>Audit log (all years)</span><a href="/export/audit.csv">CSV</a></div>
+</div>
+</div>
+{% endif %}
+{% endblock %}
