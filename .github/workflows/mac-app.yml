@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: brew install pango librsvg
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync --group desktop
+      - run: uv sync --group desktop --python 3.12
 
       - name: Icons
         run: |
@@ -38,20 +38,20 @@ jobs:
         run: DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib" uv run pyinstaller --noconfirm packaging/macos/buero.spec
 
       - name: Sign (ad hoc)
-        run: codesign --force --deep --sign - "dist/Büro.app"
+        run: codesign --force --deep --sign - dist/Buero.app && codesign --verify --deep --verbose=2 dist/Buero.app
 
       - name: Self-test without Homebrew libraries
         run: |
           sudo mv "$(brew --prefix)/lib" "$(brew --prefix)/lib.hidden"
           set +e
-          "dist/Büro.app/Contents/MacOS/Büro" --selftest
+          dist/Buero.app/Contents/MacOS/Buero --selftest
           status=$?
           sudo mv "$(brew --prefix)/lib.hidden" "$(brew --prefix)/lib"
           exit $status
 
       - name: DMG
         run: |
-          mkdir dmg && cp -R "dist/Büro.app" dmg/ && ln -s /Applications dmg/Applications
+          mkdir dmg && cp -R dist/Buero.app "dmg/Büro.app" && ln -s /Applications dmg/Applications
           hdiutil create -volname "Büro" -srcfolder dmg -ov -format UDZO Buero.dmg
 
       - uses: actions/upload-artifact@v4

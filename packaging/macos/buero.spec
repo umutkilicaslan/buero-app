@@ -30,17 +30,18 @@ a = Analysis(
     excludes=["tkinter", "pytest"],
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Büro", console=False, argv_emulation=False,
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Buero", console=False, argv_emulation=False,
           codesign_identity=None)
-coll = COLLECT(exe, a.binaries, a.datas, name="Büro")
+coll = COLLECT(exe, a.binaries, a.datas, name="Buero")
 app = BUNDLE(
     coll,
-    name="Büro.app",
+    name="Buero.app",  # ASCII inside the build (codesign); the DMG names it Büro.app
     icon=str(HERE / "build" / "Buero.icns") if (HERE / "build" / "Buero.icns").exists() else None,
     bundle_identifier="app.buero.desktop",
     version=VERSION,
     info_plist={
         "CFBundleDisplayName": "Büro",
+        "CFBundleName": "Büro",
         "CFBundleShortVersionString": VERSION,
         "LSUIElement": True,  # lives in the menu bar, no Dock icon
         "LSMinimumSystemVersion": "12.0",
