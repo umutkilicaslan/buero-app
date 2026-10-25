@@ -1,6 +1,6 @@
-{% for m in conv.display %}
+{% from "_mascot.html" import mascot %}{% for m in conv.display %}
 {% if m.role == 'user' %}<div class="msg me">{{ m.text }}</div>
-{% elif m.role == 'assistant' %}<div class="msg ai">{{ m.text }}</div>
+{% elif m.role == 'assistant' %}<div class="ai-row">{{ mascot() }}<div class="msg ai">{{ m.text }}</div></div>
 {% elif m.role == 'error' %}<div class="note warn small">{{ m.text }}</div>
 {% elif m.role == 'proposal' %}{% set pr = conv.proposals[m.id] %}
 <div class="proposal {{ pr.status }}">

@@ -65,7 +65,7 @@
   {% endif %}
 </td>
 <td class="r txamt {{ 'pos' if t.amount > 0 else 'neg' }}">{{ eur(t.amount) }}</td></tr>
-{% else %}<tr><td><div class="empty"><strong>{{ 'All done' if status == 'open' else 'Nothing here' }}</strong>{{ 'Every transaction is assigned.' if status == 'open' }}</div></td></tr>{% endfor %}
+{% else %}<tr><td><div class="empty"><strong>{{ 'All done 🎉' if status == 'open' else 'Nothing here' }}</strong>{{ 'Every transaction is assigned.' if status == 'open' }}</div></td></tr>{% endfor %}
 </tbody></table></div>
 {% if imports %}<p class="small muted">Last imports: {% for i in imports %}{{ i.imported_at.strftime('%d.%m.%Y') }} {{ i.filename }} ({{ i.rows_new }} new){{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
 {% endif %}

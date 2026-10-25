@@ -1,26 +1,32 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}Büro{% endblock %}</title><link rel="stylesheet" href="/static/app.css">
+<title>{% block title %}Büro{% endblock %}</title>
+<script>try { const t = localStorage.getItem('buero-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script><link rel="stylesheet" href="/static/app.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232f6b57'/><text x='16' y='22' font-size='17' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'>B</text></svg>">
 </head>
-<body>{% set p = request.url.path %}
+<body>{% set p = request.url.path %}{% from "_mascot.html" import mascot %}
 <div class="shell">
 <aside>
-  <div class="brand">Büro<span>.</span></div>
+  <div class="brand">{{ mascot() }}<span>Büro<span>.</span></span></div>
   <a class="btn new" href="/invoices?new=1">+ New invoice</a>
   <nav>
-    <a href="/" class="{{ 'active' if p == '/' }}">Dashboard</a>
-    <a href="/invoices" class="{{ 'active' if p.startswith('/invoices') }}">Invoices</a>
-    <a href="/expenses" class="{{ 'active' if p.startswith('/expenses') }}">Expenses</a>
-    <a href="/income" class="{{ 'active' if p.startswith('/income') }}">Income</a>
-    <a href="/bank" class="{{ 'active' if p.startswith('/bank') }}">Bank {% if nav_open_tx %}<span class="count">{{ nav_open_tx }}</span>{% endif %}</a>
-    <a href="/reports" class="{{ 'active' if p.startswith('/reports') }}">Reports &amp; taxes</a>
-    {% if settings.ai_enabled %}<a href="/assistant" class="{{ 'active' if p.startswith('/assistant') }}">✦ Assistant</a>{% endif %}
+    <a href="/" class="{{ 'active' if p == '/' }}"><span class="ico">🏠</span><span class="lbl">Dashboard</span></a>
+    <a href="/invoices" class="{{ 'active' if p.startswith('/invoices') }}"><span class="ico">🧾</span><span class="lbl">Invoices</span></a>
+    <a href="/expenses" class="{{ 'active' if p.startswith('/expenses') }}"><span class="ico">🛍️</span><span class="lbl">Expenses</span></a>
+    <a href="/income" class="{{ 'active' if p.startswith('/income') }}"><span class="ico">💶</span><span class="lbl">Income</span></a>
+    <a href="/bank" class="{{ 'active' if p.startswith('/bank') }}"><span class="ico">🏦</span><span class="lbl">Bank</span> {% if nav_open_tx %}<span class="count">{{ nav_open_tx }}</span>{% endif %}</a>
+    <a href="/reports" class="{{ 'active' if p.startswith('/reports') }}"><span class="ico">📊</span><span class="lbl">Reports &amp; taxes</span></a>
+    {% if settings.ai_enabled %}<a href="/assistant" class="{{ 'active' if p.startswith('/assistant') }}"><span class="ico">✨</span><span class="lbl">Assistant</span></a>{% endif %}
     <div class="sep"></div>
-    <a href="/clients" class="{{ 'active' if p.startswith('/clients') }}">Clients</a>
-    <a href="/settings" class="{{ 'active' if p.startswith('/settings') }}">Settings</a>
-    <a href="/audit" class="{{ 'active' if p.startswith('/audit') }}">Audit log</a>
+    <a href="/clients" class="{{ 'active' if p.startswith('/clients') }}"><span class="ico">👥</span><span class="lbl">Clients</span></a>
+    <a href="/settings" class="{{ 'active' if p.startswith('/settings') }}"><span class="ico">⚙️</span><span class="lbl">Settings</span></a>
+    <a href="/audit" class="{{ 'active' if p.startswith('/audit') }}"><span class="ico">📜</span><span class="lbl">Audit log</span></a>
   </nav>
+  <div class="theme" role="group" aria-label="Colour theme">
+    <button type="button" data-t="auto" title="Follow your Mac">Auto</button>
+    <button type="button" data-t="light" title="Light">☀️</button>
+    <button type="button" data-t="dark" title="Dark">🌙</button>
+  </div>
 </aside>
 <main class="{% block main_class %}{% endblock %}">
 {% if request.query_params.get('msg') %}<div class="flash ok">{{ request.query_params.get('msg') }}</div>{% endif %}
@@ -32,4 +38,12 @@
 {% block content %}{% endblock %}
 </main>
 </div>
+<script>
+(function(){ const btns = document.querySelectorAll('.theme button');
+  function show(){ const cur = document.documentElement.dataset.theme || 'auto'; btns.forEach(b => b.setAttribute('aria-pressed', b.dataset.t === cur)); }
+  btns.forEach(b => b.addEventListener('click', () => { const t = b.dataset.t;
+    if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('buero-theme', t); } catch (e) {} show(); }));
+  show(); })();
+</script>
 </body></html>

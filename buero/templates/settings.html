@@ -6,7 +6,7 @@
   <div class="grid">
     <div><label>Full name *</label><input name="name" value="{{ settings.name }}" required></div>
     <div><label>Business name (optional)</label><input name="business_name" value="{{ settings.business_name }}"></div>
-    <div><label>Profession</label><input name="profession" value="{{ settings.profession }}" placeholder="e.g. Zirkuspädagoge"></div>
+    <div><label>Profession</label><input name="profession" value="{{ settings.profession }}" placeholder="e.g. Grafikdesignerin, Dozent, Fotograf"></div>
     <div><label>Street and number *</label><input name="street" value="{{ settings.street }}"></div>
     <div><label>Postal code *</label><input name="postal_code" value="{{ settings.postal_code }}"></div>
     <div><label>City *</label><input name="city" value="{{ settings.city }}"></div>
@@ -24,7 +24,7 @@
       <option value="freiberufler" {{ 'selected' if settings.business_type=='freiberufler' }}>Freiberufler (§ 18 EStG)</option>
       <option value="gewerbe" {{ 'selected' if settings.business_type=='gewerbe' }}>Gewerbetreibender</option></select></div>
     <div><label>Gewerbesteuer-Hebesatz %</label><input name="gewerbesteuer_hebesatz" type="number" value="{{ settings.gewerbesteuer_hebesatz }}">
-      <div class="hint">Only for Gewerbe. Berlin: 410.</div></div>
+      <div class="hint">Only for Gewerbe. Your city publishes it, e.g. Berlin 410, Hamburg 470, München 490.</div></div>
   </div>
   <div class="grid" style="margin-top:14px">
     <label class="check"><input type="checkbox" name="kleinunternehmer" {{ 'checked' if settings.kleinunternehmer }}> Kleinunternehmer (§ 19 UStG) this year</label>
@@ -67,13 +67,13 @@
 <form method="post" action="/settings/backup" class="card">
   <h3>Backup now</h3>
   <p class="small muted">Writes one ZIP with the database, all invoices, receipts, reminders and bank files to your backup folder.
-  The app also copies the database to <code>buero-daten/backups</code> at every start{% if backups %} (last: {{ backups[-1].name }}){% endif %}.</p>
+  The app also copies the database to <code>{{ data_dir() }}/backups</code> at every start{% if backups %} (last: {{ backups[-1].name }}){% endif %}.</p>
   <button class="secondary">Create backup</button>
 </form>
 
 <form method="post" action="/settings/ai" class="card" id="ai">
   <h3>AI assistant (local)</h3>
-  <p class="small muted">Talk to your books: "Write the September invoice for GrenzKultur, 12.5 hours". It runs on your Mac with
+  <p class="small muted">Talk to your books: "Write last month's invoice for my client, 12.5 hours". It runs on your Mac with
   <a href="https://ollama.com" target="_blank">Ollama</a>, nothing is sent to the internet. It only <em>suggests</em> changes;
   you press Apply on each one. It can never issue, cancel or delete anything.</p>
   <ol class="small" style="margin:0 0 12px 18px;padding:0">

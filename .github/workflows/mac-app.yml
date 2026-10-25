@@ -1,0 +1,79 @@
+# Builds Büro.dmg: a Mac app (Apple Silicon) with Python, Pango and fonts config inside.
+# Every run uploads the DMG as an artifact; a tag like v0.2.0 also publishes it as a GitHub release.
+name: Mac app
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    paths: ["packaging/**", "buero/desktop.py", "pyproject.toml", "uv.lock", ".github/workflows/mac-app.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install pango librsvg
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --group desktop --python 3.12
+
+      - name: Icons
+        run: |
+          mkdir -p packaging/macos/build/Buero.iconset
+          cd packaging/macos/build
+          for s in 16 32 64 128 256 512 1024; do rsvg-convert -w $s -h $s ../icon.svg -o icon_$s.png; done
+          for s in 16 32 128 256 512; do
+            cp icon_$s.png Buero.iconset/icon_${s}x${s}.png
+            cp icon_$((s*2)).png Buero.iconset/icon_${s}x${s}@2x.png
+          done
+          iconutil -c icns Buero.iconset -o Buero.icns
+          rsvg-convert -w 18 -h 18 ../menubar.svg -o menubar.png
+          rsvg-convert -w 36 -h 36 ../menubar.svg -o menubar@2x.png
+
+      - name: Build app
+        run: DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib" uv run pyinstaller --noconfirm packaging/macos/buero.spec
+
+      - name: Sign (ad hoc)
+        run: codesign --force --deep --sign - dist/Buero.app && codesign --verify --deep --verbose=2 dist/Buero.app
+
+      - name: Show bundled libraries
+        run: |
+          ls dist/Buero.app/Contents/Frameworks | grep -E "dylib|fonts" || true
+          otool -L dist/Buero.app/Contents/Frameworks/libpango-1.0.0.dylib || true
+
+      - name: Self-test with Homebrew present
+        run: |
+          set +e
+          DYLD_PRINT_LIBRARIES=1 dist/Buero.app/Contents/MacOS/Buero --selftest > selftest.log 2>&1
+          status=$?
+          grep -iE "harfbuzz|pango|fontconfig|gobject" selftest.log | sort | uniq -c
+          grep -v "dyld\[" selftest.log | tail -40
+          exit $status
+
+      - name: Self-test without Homebrew libraries
+        run: |
+          sudo mv "$(brew --prefix)/lib" "$(brew --prefix)/lib.hidden"
+          set +e
+          dist/Buero.app/Contents/MacOS/Buero --selftest
+          status=$?
+          sudo mv "$(brew --prefix)/lib.hidden" "$(brew --prefix)/lib"
+          exit $status
+
+      - name: DMG
+        run: |
+          mkdir dmg && cp -R dist/Buero.app "dmg/Büro.app" && ln -s /Applications dmg/Applications
+          hdiutil create -volname "Büro" -srcfolder dmg -ov -format UDZO Buero.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Buero-mac
+          path: Buero.dmg
+
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Buero.dmg

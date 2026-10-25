@@ -220,3 +220,12 @@ def test_draft_can_be_saved_without_service_date(web):
     r = c.post("/invoices/1/save", data={"client_id": "1", "description": ["Später"], "quantity": ["1"],
                                          "unit": [""], "unit_price": ["10"], "action": "save"})
     assert "Draft saved" in r.text and "Before issuing" in r.text
+
+
+def test_getting_started_for_new_users(web):
+    c, _ = web
+    r = c.get("/")
+    assert "Getting started" in r.text and "Add client" in r.text
+    setup_business(c)
+    c.post("/invoices/new", data={"client_id": "1"})
+    assert "Getting started" not in c.get("/").text
