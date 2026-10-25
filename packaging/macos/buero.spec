@@ -20,7 +20,8 @@ datas = [
 if (HERE / "build" / "menubar.png").exists():
     datas.append((str(HERE / "build" / "menubar.png"), "."))
     datas.append((str(HERE / "build" / "menubar@2x.png"), "."))
-datas += collect_data_files("facturx") + collect_data_files("pyphen") + collect_data_files("weasyprint")
+for pkg in ("facturx", "pyphen", "weasyprint", "iso4217", "pycountry", "fastapi", "starlette"):
+    datas += collect_data_files(pkg)
 
 a = Analysis(
     [str(HERE / "launcher.py")],

@@ -78,6 +78,7 @@ def selftest() -> int:
                                              "description": ["Zirkuspädagogik"], "quantity": ["2"], "unit": ["Std."],
                                              "unit_price": ["30"], "action": "preview"})
         ok = r.headers.get("content-type") == "application/pdf" and r.content.startswith(b"%PDF")
+        ok = ok and b"/FontFile" in r.content  # fonts were found and embedded
         dash = c.get("/")
         print(f"selftest: invoice PDF {'ok' if ok else 'FAILED'} ({len(r.content)} bytes), dashboard {dash.status_code}")
         return 0 if ok and dash.status_code == 200 else 1
