@@ -52,8 +52,7 @@ jobs:
           status=$?
           grep -iE "harfbuzz|pango|fontconfig|gobject" selftest.log | sort | uniq -c
           grep -v "dyld\[" selftest.log | tail -40
-          ls -l dist/Buero.app/Contents/Frameworks | grep -iE "harfbuzz|pango"
-          exit 0
+          exit $status
 
       - name: Self-test without Homebrew libraries
         run: |

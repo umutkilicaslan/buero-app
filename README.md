@@ -31,7 +31,13 @@ delete anything. It uses [Ollama](https://ollama.com), so your data never leaves
 
 Small local models make mistakes: read every card before you press Apply.
 
-## Install (once)
+## Easiest: the Mac app
+
+No Terminal needed: download **Buero-mac** (a ZIP with Buero.dmg) from the latest successful "Mac app" run under the
+repository's **Actions** tab (or from a Release), open the DMG and drag Büro to Applications.
+Step-by-step guide to send to friends: [docs/INSTALL-MAC.md](docs/INSTALL-MAC.md).
+
+## Install from source (once)
 
 1. Install Homebrew if you don't have it: https://brew.sh
 2. In Terminal:
