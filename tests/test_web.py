@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from buero import db
+from buero.models import AuditLog
 
 DATA = Path(__file__).parent / "data"
 REAL = Path("/mnt/project-files/vergi/belge-veritabani/kontist-transactions_2024-01-01_2026-10-19.csv")
@@ -141,3 +142,59 @@ def test_real_export_through_web(web):
     assert "new transactions" in r.text
     assert c.get("/bank?status=all").status_code == 200
     assert c.get("/").status_code == 200
+
+
+def test_preview_shows_unsaved_form_without_saving(web, monkeypatch):
+    from buero import pdf
+    c, _ = web
+    setup_business(c)
+    c.post("/invoices/new", data={"client_id": "1"})
+    r = c.post("/invoices/1/save", data={"client_id": "1", "language": "de", "service_from": "2026-09-01",
+                                         "description": ["Zirkustraining"], "quantity": ["2"], "unit": ["Std."],
+                                         "unit_price": ["30"], "action": "preview"})
+    assert r.headers["content-type"] == "application/pdf" and r.content.startswith(b"%PDF")
+    assert "Zirkustraining" not in c.get("/invoices/1/preview").text
+    with db.SessionLocal() as s:
+        assert not s.query(AuditLog).filter_by(action="draft_updated").count()
+    monkeypatch.setattr(pdf, "render_pdf", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no pango")))
+    r = c.post("/invoices/1/save", data={"client_id": "1", "service_from": "2026-09-01", "description": ["Jonglage"],
+                                         "quantity": ["1"], "unit": [""], "unit_price": ["5"], "action": "preview"})
+    assert "Jonglage" in r.text and "5,00" in r.text
+
+
+def test_preview_without_pango_falls_back_to_html(web, monkeypatch):
+    from buero import pdf
+
+    def no_pango(*a, **k):
+        raise RuntimeError(pdf.PANGO_HELP)
+    c, _ = web
+    setup_business(c)
+    c.post("/invoices/new", data={"client_id": "1"})
+    monkeypatch.setattr(pdf, "render_pdf", no_pango)
+    r = c.get("/invoices/1/pdf")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    assert "web preview" in r.text and "brew install pango" in r.text and "Rechnung" in r.text
+    assert "brew install pango" in c.get(f"/reports/euer.pdf?year={date.today().year}").text
+
+
+def test_pdf_problem_shown_in_app(web, monkeypatch):
+    from buero import pdf
+    c, _ = web
+    monkeypatch.setattr(pdf, "engine_error", lambda: pdf.PANGO_HELP)
+    assert "PDFs are not working" in c.get("/").text
+
+
+def test_macos_restarts_with_homebrew_library_path(monkeypatch):
+    import buero.__main__ as m
+    calls = []
+    monkeypatch.setattr(m.sys, "platform", "darwin")
+    monkeypatch.setattr(m.os.path, "isdir", lambda p: p == m.HOMEBREW_LIB)
+    monkeypatch.setattr(m.os, "execve", lambda exe, argv, env: calls.append((argv, env)))
+    monkeypatch.delenv("BUERO_LIBS_SET", raising=False)
+    monkeypatch.delenv("DYLD_FALLBACK_LIBRARY_PATH", raising=False)
+    m._find_homebrew_libs()
+    argv, env = calls[0]
+    assert argv[1:3] == ["-m", "buero"] and env["DYLD_FALLBACK_LIBRARY_PATH"].startswith("/opt/homebrew/lib:")
+    monkeypatch.setenv("BUERO_LIBS_SET", "1")
+    m._find_homebrew_libs()
+    assert len(calls) == 1

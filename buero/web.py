@@ -1,5 +1,6 @@
 import hashlib
 import json
+from html import escape
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -41,6 +42,7 @@ def get_session():
 def page(request: Request, name: str, s: Session, **ctx):
     ctx.setdefault("settings", services.get_settings(s))
     ctx.setdefault("today", date.today())
+    ctx.setdefault("pdf_error", pdf.engine_error())
     ctx.setdefault("nav_open_tx", s.scalar(select(func.count()).select_from(Transaction)
                                            .where(Transaction.status == "open")))
     return templates.TemplateResponse(request, name, ctx)
@@ -303,25 +305,33 @@ def ctx_log(s: Session, inv: Invoice) -> list[AuditLog]:
     return list(s.scalars(select(AuditLog).where(AuditLog.entity == "invoice", AuditLog.entity_id == inv.id)))
 
 
+def _apply_draft_form(s: Session, inv: Invoice, f) -> None:
+    header = {"client_id": int(f["client_id"]), "language": f.get("language", "de"),
+              "issue_date": _date(f.get("issue_date")), "service_from": _date(f.get("service_from")),
+              "service_to": _date(f.get("service_to")), "intro_text": f.get("intro_text", "").strip(),
+              "vat_override": f.get("vat_override", "")}
+    lines = []
+    for d_, q_, u_, p_ in zip(f.getlist("description"), f.getlist("quantity"), f.getlist("unit"),
+                              f.getlist("unit_price")):
+        if not d_.strip() and not p_.strip():
+            continue
+        if not d_.strip():
+            raise BusinessError("Every line needs a description.")
+        lines.append({"description": d_.strip(), "quantity": _dec(q_, Decimal("1")),
+                      "unit": u_.strip(), "unit_price": _dec(p_, Decimal("0"))})
+    services.update_draft(s, inv, header, lines)
+
+
 @app.post("/invoices/{iid}/save")
 async def invoice_save(iid: int, request: Request, s: Session = Depends(get_session)):
     inv = _get(s, Invoice, iid)
     f = await request.form()
     try:
-        header = {"client_id": int(f["client_id"]), "language": f.get("language", "de"),
-                  "issue_date": _date(f.get("issue_date")), "service_from": _date(f.get("service_from")),
-                  "service_to": _date(f.get("service_to")), "intro_text": f.get("intro_text", "").strip(),
-                  "vat_override": f.get("vat_override", "")}
-        lines = []
-        for d_, q_, u_, p_ in zip(f.getlist("description"), f.getlist("quantity"), f.getlist("unit"),
-                                  f.getlist("unit_price")):
-            if not d_.strip() and not p_.strip():
-                continue
-            if not d_.strip():
-                raise BusinessError("Every line needs a description.")
-            lines.append({"description": d_.strip(), "quantity": _dec(q_, Decimal("1")),
-                          "unit": u_.strip(), "unit_price": _dec(p_, Decimal("0"))})
-        services.update_draft(s, inv, header, lines)
+        _apply_draft_form(s, inv, f)
+        if f.get("action") == "preview":  # show what is in the form, without saving it
+            html = _draft_html(s, inv)
+            s.rollback()
+            return _pdf_or_html(html, f"Entwurf_{iid}.pdf")
         s.commit()
     except (BusinessError, ValueError) as e:
         s.rollback()
@@ -403,6 +413,18 @@ def _draft_html(s: Session, inv: Invoice) -> str:
                            services.client_snapshot(inv.client, d.show_vat_ids), d.note(inv.language))
 
 
+def _pdf_or_html(html: str, filename: str) -> Response:
+    """The PDF, or if PDFs cannot be made on this computer, the same page as HTML with the reason on top."""
+    try:
+        return Response(pdf.render_pdf(html), media_type="application/pdf",
+                        headers={"Content-Disposition": f'inline; filename="{filename}"'})
+    except RuntimeError as e:
+        banner = ('<div style="font:14px/1.5 -apple-system,sans-serif;background:#fbe9e7;color:#a3302a;'
+                  'padding:12px 16px;margin:0 0 16px;border-radius:8px">'
+                  f'<strong>Showing a web preview instead of the PDF.</strong> {escape(str(e))}</div>')
+        return HTMLResponse(html.replace("<body>", "<body>" + banner, 1))
+
+
 @app.get("/invoices/{iid}/preview", response_class=HTMLResponse)
 def invoice_preview(iid: int, s: Session = Depends(get_session)):
     inv = _get(s, Invoice, iid)
@@ -413,7 +435,7 @@ def invoice_preview(iid: int, s: Session = Depends(get_session)):
 def invoice_pdf(iid: int, s: Session = Depends(get_session)):
     inv = _get(s, Invoice, iid)
     if inv.is_draft:
-        return Response(pdf.render_pdf(_draft_html(s, inv)), media_type="application/pdf")
+        return _pdf_or_html(_draft_html(s, inv), f"Entwurf_{iid}.pdf")
     if not inv.pdf_path or not Path(inv.pdf_path).exists():
         return back(f"/invoices/{iid}", err="Archived PDF not found on disk. Restore it from your backup.")
     if hashlib.sha256(Path(inv.pdf_path).read_bytes()).hexdigest() != inv.pdf_sha256:
@@ -465,7 +487,7 @@ async def invoice_remind(iid: int, request: Request, s: Session = Depends(get_se
     try:
         r = reminders.create(s, inv, days=int(f.get("days") or 10), fee=_dec(f.get("fee")))
         s.commit()
-    except (BusinessError, ValueError) as e:
+    except (BusinessError, ValueError, RuntimeError) as e:
         s.rollback()
         return back(f"/invoices/{iid}", err=str(e))
     return back(f"/invoices/{iid}", msg=f"{reminders.LEVELS[r.level]['de']} created.")
@@ -890,8 +912,7 @@ async def tax_year_save(request: Request, s: Session = Depends(get_session)):
 def euer_pdf(year: int, s: Session = Depends(get_session)):
     html = templates.get_template("euer_pdf.html").render(euer=ledger.euer(s, year), settings=services.get_settings(s),
                                                          today=date.today(), eur=money.fmt_eur)
-    return Response(pdf.render_pdf(html), media_type="application/pdf",
-                    headers={"Content-Disposition": f'inline; filename="EUER_{year}.pdf"'})
+    return _pdf_or_html(html, f"EUER_{year}.pdf")
 
 
 @app.get("/export/{name}.csv")

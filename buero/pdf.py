@@ -1,5 +1,6 @@
 """Invoice HTML/PDF rendering (WeasyPrint)."""
 import json
+from functools import cache
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -53,10 +54,25 @@ def render_html(inv: Invoice, seller: dict | None = None, client: dict | None = 
     )
 
 
-def render_pdf(html: str, pdfa: bool = False) -> bytes:
+PANGO_HELP = ("PDFs cannot be made because the Pango library was not found. In Terminal run "
+              "'brew install pango', then stop the app (Ctrl+C) and start it again with 'uv run buero'.")
+
+
+@cache
+def engine_error() -> str | None:
+    """None if WeasyPrint can make PDFs, otherwise a message for the user. Checked once per start."""
     try:
-        from weasyprint import HTML
-    except OSError as e:  # missing system libraries (pango) on macOS
-        raise RuntimeError("WeasyPrint needs Pango. On macOS run: brew install pango") from e
+        import weasyprint  # noqa: F401
+    except OSError:  # Pango/GObject not installed or not on the library path
+        return PANGO_HELP
+    except Exception as e:  # noqa: BLE001
+        return f"PDFs cannot be made: {e}"
+    return None
+
+
+def render_pdf(html: str, pdfa: bool = False) -> bytes:
+    if err := engine_error():
+        raise RuntimeError(err)
+    from weasyprint import HTML
     kwargs = {"pdf_variant": "pdf/a-3b"} if pdfa else {}
     return HTML(string=html, base_url=str(TEMPLATES)).write_pdf(**kwargs)

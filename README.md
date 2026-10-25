@@ -55,6 +55,17 @@ uv run buero
 The browser opens at http://127.0.0.1:8000. Stop with `Ctrl+C`.
 The app only listens on your own computer (127.0.0.1), nobody else on the network can open it.
 
+### If PDFs or the invoice preview do not work
+
+The app shows a red note at the top when it cannot make PDFs. Then:
+
+1. In Terminal: `brew install pango`
+2. Stop the app (`Ctrl+C`) and start it again with `uv run buero`.
+
+On Apple Silicon Macs Homebrew installs Pango in `/opt/homebrew/lib`. The app adds that folder to the
+library path by restarting itself once at launch, so no extra setup is needed. Until PDFs work, "Preview PDF"
+shows the invoice as a web page instead.
+
 ## First steps
 
 1. **Settings**: your name, address, Steuernummer, IBAN, Kleinunternehmer yes/no, Ist- or
