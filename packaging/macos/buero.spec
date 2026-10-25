@@ -2,6 +2,7 @@
 #   DYLD_FALLBACK_LIBRARY_PATH=$(brew --prefix)/lib uv run pyinstaller packaging/macos/buero.spec
 # The weasyprint hook (pyinstaller-hooks-contrib) copies Pango, HarfBuzz, fontconfig and their
 # dependencies from Homebrew into the bundle.
+import os
 import tomllib
 from pathlib import Path
 
@@ -30,6 +31,27 @@ a = Analysis(
     hiddenimports=collect_submodules("uvicorn") + collect_submodules("buero") + ["rumps"],
     excludes=["tkinter", "pytest"],
 )
+
+# Homebrew ships each library under two names (libharfbuzz.dylib -> libharfbuzz.0.dylib) and the
+# hook copies both. Two copies load as two separate libraries: Pango then hands a HarfBuzz font to
+# the other copy, which crashes (bus error). Keep one real file per library, the rest as symlinks.
+def _dedupe(binaries):
+    groups = {}
+    for dest, src, kind in binaries:
+        if kind == "BINARY" and dest.endswith(".dylib"):
+            groups.setdefault(os.path.realpath(src), []).append(dest)
+    links = {}
+    for dests in groups.values():
+        keep = max(dests, key=lambda d: (os.path.basename(d).count("."), d))
+        for d in dests:
+            if d != keep:
+                links[d] = os.path.relpath(keep, os.path.dirname(d) or ".")
+    for d, target in sorted(links.items()):
+        print(f"buero.spec: {d} -> {target}")
+    return [(d, links[d], "SYMLINK") if d in links else (d, src, kind) for d, src, kind in binaries]
+
+
+a.binaries = _dedupe(a.binaries)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Buero", console=False, argv_emulation=False,
           codesign_identity=None)
